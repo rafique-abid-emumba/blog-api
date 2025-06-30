@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "blog-api"
+version = "0.1.0"
+description = "FASTAPI-Powered Blog API – Advanced Edition"
+authors = ["Rafique Abid"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+fastapi = "^0.115.14"
+uvicorn = "^0.35.0"
+sqlalchemy = "^2.0.41"
+alembic = "^1.16.2"
+psycopg2-binary = "^2.9.10"
+pydantic = "^2.11.7"
+bcrypt = "^4.3.0"
+python-jose = {extras = ["cryptography"], version = "^3.5.0"}
+httpx = "^0.28.1"
+redis = "^6.2.0"
+qdrant-client = "^1.14.3"
+cohere = "^5.15.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
