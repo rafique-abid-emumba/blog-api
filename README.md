@@ -83,7 +83,7 @@ poetry install
 
 Create a `.env` file in the project root with your secrets:
 ```
-DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/blogdb
+DATABASE_URL=postgresql+psycopg2://user:password@localhost:5433/blogdb
 SECRET_KEY=your-secret-key
 COHERE_API_KEY=your-cohere-key
 GROQ_API_KEY=your-groq-key
