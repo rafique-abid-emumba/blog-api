@@ -74,8 +74,9 @@ pip install poetry
 pipx install poetry
 ```
 
-### 3. Install dependencies
+### 3. Install dependencies (including email-validator)
 ```sh
+poetry add email-validator
 poetry install
 ```
 
@@ -83,7 +84,7 @@ poetry install
 
 Create a `.env` file in the project root with your secrets:
 ```
-DATABASE_URL=postgresql+psycopg2://user:password@localhost:5433/blogdb
+DATABASE_URL=postgresql+psycopg2://user:password@localhost:5432/blogdb
 SECRET_KEY=your-secret-key
 COHERE_API_KEY=your-cohere-key
 GROQ_API_KEY=your-groq-key
@@ -96,12 +97,28 @@ REDIS_URL=redis://localhost:6379/0
 alembic upgrade head
 ```
 
-### 6. Start the development server
+### 6. Seed Initial Roles
+
+Before registering users, you must seed the default roles into the database. This ensures the `role_id` foreign key constraint is satisfied when creating users.
+
+Run the following command from your project root:
+```sh
+poetry run python -m app.db.seed_roles
+```
+This script will insert the default roles (`Admin`, `Author`, `Reader`) into the `roles` table if they do not already exist.
+
+Alternatively, you can run this SQL command in your PostgreSQL client:
+```sql
+INSERT INTO roles (name) VALUES ('Admin'), ('Author'), ('Reader');
+```
+**You must perform this step after running your first Alembic migration and before registering any users.**
+
+### 7. Start the development server
 ```sh
 poetry run uvicorn app.main:app --reload
 ```
 
-### 7. Access API docs
+### 8. Access API docs
 - Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 - ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
