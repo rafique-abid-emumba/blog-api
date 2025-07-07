@@ -28,6 +28,20 @@ def get_password_hash(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
+def get_user(db: Session, user_id: int) -> User:
+    """Get user by ID"""
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            logger.warning(f"User not found: ID {user_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch user")
+
 def create_user(db: Session, user_in: UserCreate) -> User:
     try:
         if is_duplicate_username(db, user_in.username):

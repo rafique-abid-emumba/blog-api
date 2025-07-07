@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from app.schemas.post import PostCreate, PostUpdate, PostOut
-from app.services.post_service import create_post, get_post, get_posts, update_post, delete_post
+from app.schemas.post import PostCreate, PostUpdate, PostOut, PostStatus
+from app.services.post_service import (
+    create_post, get_post, get_posts_for_admin, 
+    get_posts_for_author, get_posts_for_reader, 
+    update_post, delete_post
+)
+from app.services.user_service import get_user
 from app.db.deps import get_db
 from app.core.deps import get_current_user, require_role
-from app.models.user import User
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -15,8 +19,7 @@ def create_new_post(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    from app.models.user import User
-    user = db.query(User).get(int(current_user["sub"]))
+    user = get_user(db, int(current_user["sub"]))
     return create_post(db, user, post_in)
 
 @router.get("/{post_id}", response_model=PostOut)
@@ -26,8 +29,6 @@ def read_post(
     current_user=Depends(get_current_user)
 ):
     post = get_post(db, post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
     if post.status == PostStatus.draft:
         if post.author_id != int(current_user["sub"]) and current_user["role"] != "Admin":
             raise HTTPException(status_code=403, detail="You do not have access to this draft post")
@@ -40,17 +41,12 @@ def list_posts(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    query = db.query(Post)
     if current_user["role"] == "Admin":
-        posts = query.offset(skip).limit(limit).all()
+        return get_posts_for_admin(db, skip, limit)
     elif current_user["role"] == "Author":
-        posts = query.filter(
-            (Post.status == PostStatus.published) |
-            ((Post.status == PostStatus.draft) & (Post.author_id == int(current_user["sub"])))
-        ).offset(skip).limit(limit).all()
-    else:
-        posts = query.filter(Post.status == PostStatus.published).offset(skip).limit(limit).all()
-    return posts
+        return get_posts_for_author(db, int(current_user["sub"]), skip, limit)
+    else:  # Reader
+        return get_posts_for_reader(db, skip, limit)
 
 @router.put("/{post_id}", response_model=PostOut, dependencies=[Depends(require_role(["Admin", "Author"]))])
 def update_existing_post(
@@ -60,8 +56,6 @@ def update_existing_post(
     current_user=Depends(get_current_user)
 ):
     post = get_post(db, post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
     # Only author or admin can update
     if post.author_id != int(current_user["sub"]) and current_user["role"] != "Admin":
         raise HTTPException(status_code=403, detail="Not allowed to update this post")
@@ -74,8 +68,6 @@ def delete_existing_post(
     current_user=Depends(get_current_user)
 ):
     post = get_post(db, post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
     # Only author or admin can delete
     if post.author_id != int(current_user["sub"]) and current_user["role"] != "Admin":
         raise HTTPException(status_code=403, detail="Not allowed to delete this post")

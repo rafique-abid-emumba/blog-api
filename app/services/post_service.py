@@ -43,8 +43,11 @@ def get_post(db: Session, post_id: int) -> Post:
     try:
         post = db.query(Post).filter(Post.id == post_id).first()
         if not post:
-            logger.warning(f"Post not found: ID {post_id}")
+            logger.warning("Attempted to get non-existent post")
+            raise HTTPException(status_code=404, detail="Post not found")
         return post
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching post: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch post")
@@ -58,8 +61,45 @@ def get_posts(db: Session, skip: int = 0, limit: int = 10):
         logger.error(f"Error fetching posts: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch posts")
 
+def get_posts_for_admin(db: Session, skip: int = 0, limit: int = 10):
+    """Get all posts for Admin users"""
+    try:
+        posts = db.query(Post).offset(skip).limit(limit).all()
+        logger.info(f"Admin fetched {len(posts)} posts (skip={skip}, limit={limit})")
+        return posts
+    except Exception as e:
+        logger.error(f"Error fetching posts for admin: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch posts")
+
+def get_posts_for_author(db: Session, author_id: int, skip: int = 0, limit: int = 10):
+    """Get published posts + author's own drafts for Author users"""
+    try:
+        posts = db.query(Post).filter(
+            (Post.status == PostStatus.published) |
+            ((Post.status == PostStatus.draft) & (Post.author_id == author_id))
+        ).offset(skip).limit(limit).all()
+        logger.info(f"Author {author_id} fetched {len(posts)} posts (skip={skip}, limit={limit})")
+        return posts
+    except Exception as e:
+        logger.error(f"Error fetching posts for author: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch posts")
+
+def get_posts_for_reader(db: Session, skip: int = 0, limit: int = 10):
+    """Get only published posts for Reader users"""
+    try:
+        posts = db.query(Post).filter(Post.status == PostStatus.published).offset(skip).limit(limit).all()
+        logger.info(f"Reader fetched {len(posts)} published posts (skip={skip}, limit={limit})")
+        return posts
+    except Exception as e:
+        logger.error(f"Error fetching posts for reader: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch posts")
+
 def update_post(db: Session, post: Post, post_update: PostUpdate) -> Post:
     try:
+        if not post:
+            logger.warning("Attempted to update non-existent post")
+            raise HTTPException(status_code=404, detail="Post not found")
+        
         if post_update.title is not None:
             post.title = post_update.title
         if post_update.content is not None:
@@ -70,6 +110,8 @@ def update_post(db: Session, post: Post, post_update: PostUpdate) -> Post:
         db.refresh(post)
         logger.info(f"Post updated successfully: {post.title} (ID: {post.id})")
         return post
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating post: {e}")
@@ -77,9 +119,15 @@ def update_post(db: Session, post: Post, post_update: PostUpdate) -> Post:
 
 def delete_post(db: Session, post: Post):
     try:
+        if not post:
+            logger.warning("Attempted to delete non-existent post")
+            raise HTTPException(status_code=404, detail="Post not found")
+        
         db.delete(post)
         db.commit()
         logger.info(f"Post deleted: ID {post.id}")
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error deleting post: {e}")

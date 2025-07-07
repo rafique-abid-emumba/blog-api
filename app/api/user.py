@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.schemas.user import UserCreate, UserLogin, UserOut, UserUpdate
-from app.services.user_service import create_user, authenticate_user, update_user
+from app.services.user_service import create_user, authenticate_user, update_user, get_user
 from app.db.deps import get_db
 from app.core.security import create_access_token, create_refresh_token, verify_refresh_token
 from app.core.deps import get_current_user
 from datetime import timedelta
-from app.models.user import User
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -52,7 +51,7 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
 
 @router.get("/profile", response_model=UserOut)
 def get_profile(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    user = db.query(User).get(int(current_user["sub"]))
+    user = get_user(db, int(current_user["sub"]))
     return UserOut.from_orm(user)
 
 @router.put("/profile", response_model=UserOut)
@@ -61,6 +60,6 @@ def update_profile(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).get(int(current_user["sub"]))
+    user = get_user(db, int(current_user["sub"]))
     updated_user = update_user(db, user, user_update)
     return UserOut.from_orm(updated_user)
