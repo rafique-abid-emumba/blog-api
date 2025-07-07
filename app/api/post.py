@@ -28,11 +28,29 @@ def read_post(
     post = get_post(db, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    if post.status == PostStatus.draft:
+        if post.author_id != int(current_user["sub"]) and current_user["role"] != "Admin":
+            raise HTTPException(status_code=403, detail="You do not have access to this draft post")
     return post
 
 @router.get("/", response_model=List[PostOut])
-def list_posts(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
-    return get_posts(db, skip=skip, limit=limit)
+def list_posts(
+    skip: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    query = db.query(Post)
+    if current_user["role"] == "Admin":
+        posts = query.offset(skip).limit(limit).all()
+    elif current_user["role"] == "Author":
+        posts = query.filter(
+            (Post.status == PostStatus.published) |
+            ((Post.status == PostStatus.draft) & (Post.author_id == int(current_user["sub"])))
+        ).offset(skip).limit(limit).all()
+    else:
+        posts = query.filter(Post.status == PostStatus.published).offset(skip).limit(limit).all()
+    return posts
 
 @router.put("/{post_id}", response_model=PostOut, dependencies=[Depends(require_role(["Admin", "Author"]))])
 def update_existing_post(

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
 
 class UserBase(BaseModel):
@@ -18,11 +18,10 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
 
 class UserOut(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     role: str
-
-    class Config:
-        from_attributes=True
 
     @classmethod
     def from_orm(cls, user):

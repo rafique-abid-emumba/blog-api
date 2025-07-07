@@ -62,7 +62,5 @@ def update_profile(
     db: Session = Depends(get_db)
 ):
     user = db.query(User).get(int(current_user["sub"]))
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
     updated_user = update_user(db, user, user_update)
     return UserOut.from_orm(updated_user)
