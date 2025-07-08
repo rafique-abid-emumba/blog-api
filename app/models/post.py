@@ -19,5 +19,5 @@ class Post(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     author = relationship("User", back_populates="posts")
-    post_tags = relationship("PostTag", back_populates="post")
+    post_tags = relationship("PostTag", back_populates="post", cascade="all, delete-orphan")
     comments = relationship("Comment", back_populates="post") 
