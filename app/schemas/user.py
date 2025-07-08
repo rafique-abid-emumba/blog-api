@@ -25,7 +25,6 @@ class UserOut(UserBase):
 
     @classmethod
     def from_orm(cls, user):
-        # user.role is a Role object; get its name
         return cls(
             id=user.id,
             username=user.username,

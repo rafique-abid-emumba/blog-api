@@ -18,11 +18,10 @@ def create_post(db: Session, author: User, post_in: PostCreate) -> Post:
             author_id=author.id
         )
         db.add(post)
-        db.flush()  # Get post.id before adding tags
+        db.flush()
 
-        # Handle tags, removing duplicates from input
         if post_in.tags:
-            unique_tags = set(post_in.tags)  # Remove duplicates from input
+            unique_tags = set(post_in.tags)
             for tag_name in unique_tags:
                 tag = db.query(Tag).filter_by(name=tag_name).first()
                 if not tag:
@@ -62,7 +61,6 @@ def get_posts(db: Session, skip: int = 0, limit: int = 10):
         raise HTTPException(status_code=500, detail="Failed to fetch posts")
 
 def get_posts_for_admin(db: Session, skip: int = 0, limit: int = 10):
-    """Get all posts for Admin users"""
     try:
         posts = db.query(Post).offset(skip).limit(limit).all()
         logger.info(f"Admin fetched {len(posts)} posts (skip={skip}, limit={limit})")
@@ -72,7 +70,6 @@ def get_posts_for_admin(db: Session, skip: int = 0, limit: int = 10):
         raise HTTPException(status_code=500, detail="Failed to fetch posts")
 
 def get_posts_for_author(db: Session, author_id: int, skip: int = 0, limit: int = 10):
-    """Get published posts + author's own drafts for Author users"""
     try:
         posts = db.query(Post).filter(
             (Post.status == PostStatus.published) |
@@ -85,7 +82,6 @@ def get_posts_for_author(db: Session, author_id: int, skip: int = 0, limit: int 
         raise HTTPException(status_code=500, detail="Failed to fetch posts")
 
 def get_posts_for_reader(db: Session, skip: int = 0, limit: int = 10):
-    """Get only published posts for Reader users"""
     try:
         posts = db.query(Post).filter(Post.status == PostStatus.published).offset(skip).limit(limit).all()
         logger.info(f"Reader fetched {len(posts)} published posts (skip={skip}, limit={limit})")
