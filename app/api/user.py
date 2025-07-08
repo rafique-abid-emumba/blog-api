@@ -2,10 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.schemas.user import UserCreate, UserLogin, UserOut, UserUpdate
 from app.services.user_service import create_user, authenticate_user, update_user, get_user
+from app.services.auth_service import issue_tokens, refresh_user_token
 from app.db.deps import get_db
-from app.core.security import create_access_token, create_refresh_token, verify_refresh_token
 from app.core.deps import get_current_user
-from datetime import timedelta
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -19,35 +18,11 @@ def login(user_in: UserLogin, db: Session = Depends(get_db)):
     user = authenticate_user(db, user_in.username, user_in.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role.name},
-        expires_delta=timedelta(minutes=30)
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": str(user.id), "role": user.role.name},
-        expires_delta=timedelta(days=7)
-    )
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+    return issue_tokens(str(user.id), user.role.name)
 
 @router.post("/refresh")
 def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
-    payload = verify_refresh_token(refresh_token)
-    if not payload:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-    user_id = payload.get("sub")
-    role = payload.get("role")
-    access_token = create_access_token(
-        data={"sub": user_id, "role": role},
-        expires_delta=timedelta(minutes=30)
-    )
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return refresh_user_token(refresh_token)
 
 @router.get("/profile", response_model=UserOut)
 def get_profile(current_user=Depends(get_current_user), db: Session = Depends(get_db)):

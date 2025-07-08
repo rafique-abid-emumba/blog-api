@@ -9,6 +9,17 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def set_post_tags(db: Session, post: Post, tags: list[str]):
+    unique_tags = set(tags)
+    for tag_name in unique_tags:
+        tag = db.query(Tag).filter_by(name=tag_name).first()
+        if not tag:
+            tag = Tag(name=tag_name)
+            db.add(tag)
+            db.flush()
+        db.add(PostTag(post_id=post.id, tag_id=tag.id))
+
+
 def create_post(db: Session, author: User, post_in: PostCreate) -> Post:
     try:
         post = Post(
@@ -21,14 +32,7 @@ def create_post(db: Session, author: User, post_in: PostCreate) -> Post:
         db.flush()
 
         if post_in.tags:
-            unique_tags = set(post_in.tags)
-            for tag_name in unique_tags:
-                tag = db.query(Tag).filter_by(name=tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                    db.add(tag)
-                    db.flush()
-                db.add(PostTag(post_id=post.id, tag_id=tag.id))
+            set_post_tags(db, post, post_in.tags)
         db.commit()
         db.refresh(post)
         logger.info(f"Post created successfully: {post.title} (ID: {post.id})")
@@ -102,6 +106,10 @@ def update_post(db: Session, post: Post, post_update: PostUpdate) -> Post:
             post.content = post_update.content
         if post_update.status is not None:
             post.status = post_update.status
+        if post_update.tags is not None:
+            db.query(PostTag).filter(PostTag.post_id == post.id).delete()
+            db.flush()
+            set_post_tags(db, post, post_update.tags)
         db.commit()
         db.refresh(post)
         logger.info(f"Post updated successfully: {post.title} (ID: {post.id})")

@@ -1,21 +1,21 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, constr
 from typing import Optional
 
 class UserBase(BaseModel):
-    username: str
+    username: constr(min_length=1)
     email: EmailStr
 
 class UserCreate(UserBase):
-    password: str
+    password: constr(min_length=1)
 
 class UserLogin(BaseModel):
-    username: str
-    password: str
+    username: constr(min_length=1)
+    password: constr(min_length=1)
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
+    username: Optional[constr(min_length=1)] = None
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
+    password: Optional[constr(min_length=1)] = None
 
 class UserOut(UserBase):
     model_config = ConfigDict(from_attributes=True)

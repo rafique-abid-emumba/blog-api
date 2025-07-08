@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, constr
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
@@ -8,8 +8,8 @@ class PostStatus(str, Enum):
     published = "published"
 
 class PostBase(BaseModel):
-    title: str
-    content: str
+    title: constr(min_length=1)
+    content: constr(min_length=1)
     status: PostStatus = PostStatus.draft
     tags: Optional[List[str]] = None
 
@@ -17,8 +17,8 @@ class PostCreate(PostBase):
     pass
 
 class PostUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
+    title: Optional[constr(min_length=1)] = None
+    content: Optional[constr(min_length=1)] = None
     status: Optional[PostStatus] = None
     tags: Optional[List[str]] = None
 
