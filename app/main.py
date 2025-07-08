@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -22,7 +21,6 @@ async def lifespan(app: FastAPI):
     
     yield
     
-    # Shutdown
     logger.info("Application shutting down.")
 
 app = FastAPI(lifespan=lifespan)

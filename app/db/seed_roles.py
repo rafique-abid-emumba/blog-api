@@ -13,9 +13,9 @@ def seed_roles():
 
 if __name__ == "__main__":
     seed_roles()
-
 """
 Script to seed default roles into the roles table.
 Run this after your first migration and before registering users:
     poetry run python -m app.db.seed_roles
 """
+
