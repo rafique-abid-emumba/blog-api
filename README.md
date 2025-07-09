@@ -193,3 +193,21 @@ RBAC is enforced using FastAPI dependencies (`require_role`).
 ---
 
 > **Note:** This project is under active development. Features and documentation will evolve as the project progresses. 
+
+---
+
+## 🔑 Authentication, Token Rotation, and Revocation
+
+- **JWT access and refresh tokens** are used for authentication.
+- **Refresh token rotation** is implemented: every time a refresh token is used, a new one is issued and the old one is blacklisted.
+- **Token revocation/blacklisting** is handled using Redis. If a refresh token is used again after rotation, it is rejected.
+- **Redis setup:**
+  - For development, run Redis with Docker:
+    ```sh
+    docker run -d --name blog-redis -p 6379:6379 redis
+    ```
+  - Set `REDIS_URL=redis://localhost:6379/0` in your `.env` file.
+  - In production, use a managed Redis service (AWS ElastiCache, Azure, Redis Cloud, etc.).
+- **All token logic is modularized in `auth_service.py` for clean architecture.**
+
+---

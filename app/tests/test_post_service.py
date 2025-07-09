@@ -4,8 +4,6 @@ from app.services.post_service import (
     create_post, get_post, get_posts, update_post, delete_post
 )
 from app.schemas.post import PostCreate, PostUpdate, PostStatus
-from app.models.user import User
-from app.models.role import Role
 
 class TestPostService:
     
@@ -127,6 +125,35 @@ class TestPostService:
         assert updated_post.title == "Updated Title"
         assert updated_post.content == "Original content"
         assert updated_post.status.name == PostStatus.draft.value
+    
+    def test_update_post_tags(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Tag Update Post",
+            content="Content for tag update",
+            status=PostStatus.published,
+            tags=["python", "fastapi"]
+        )
+        post = create_post(db_session, test_user, post_data)
+        assert len(post.post_tags) == 2
+
+        # Update tags: replace with new set
+        update_data = PostUpdate(tags=["ai", "ml"])
+        updated_post = update_post(db_session, post, update_data)
+        tag_names = [pt.tag.name for pt in updated_post.post_tags]
+        assert set(tag_names) == {"ai", "ml"}
+        assert len(updated_post.post_tags) == 2
+
+        # Remove all tags
+        update_data = PostUpdate(tags=[])
+        updated_post = update_post(db_session, post, update_data)
+        assert len(updated_post.post_tags) == 0
+
+        # Add tags back
+        update_data = PostUpdate(tags=["python"])
+        updated_post = update_post(db_session, post, update_data)
+        tag_names = [pt.tag.name for pt in updated_post.post_tags]
+        assert set(tag_names) == {"python"}
+        assert len(updated_post.post_tags) == 1
     
     def test_delete_post_success(self, db_session, test_user):
         post_data = PostCreate(
