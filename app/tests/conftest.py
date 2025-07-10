@@ -33,18 +33,18 @@ def client():
 
 @pytest.fixture
 def test_user(db_session):
-    # Create test roles
     admin_role = Role(name="Admin")
     author_role = Role(name="Author")
     reader_role = Role(name="Reader")
     db_session.add_all([admin_role, author_role, reader_role])
     db_session.commit()
-    
-    # Create test user
+
     user_data = UserCreate(
         username="testuser",
         email="test@example.com",
         password="TestPass123!"
     )
     user = create_user(db_session, user_data)
+    user.role_id = admin_role.id
+    db_session.commit()
     return user 

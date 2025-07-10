@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import logging
+logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 

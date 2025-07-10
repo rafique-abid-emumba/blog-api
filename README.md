@@ -135,6 +135,33 @@ poetry run uvicorn app.main:app --reload
 poetry run python -m pytest -v app/tests/
 ```
 
+## Running Tests with Coverage
+
+To run tests and measure code coverage:
+
+```bash
+pytest --cov=app --cov-report=term-missing app/tests
+```
+
+To generate an HTML coverage report:
+
+```bash
+pytest --cov=app --cov-report=html app/tests
+# Open the report in your browser:
+# On Windows:
+start htmlcov/index.html
+# On macOS:
+open htmlcov/index.html
+# On Linux:
+x-www-browser htmlcov/index.html
+```
+
+Make sure you have `pytest-cov` installed:
+
+```bash
+poetry add --dev pytest-cov
+```
+
 ---
 
 ## 📝 Documentation

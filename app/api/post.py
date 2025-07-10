@@ -45,7 +45,7 @@ def list_posts(
         return get_posts_for_admin(db, skip, limit)
     elif current_user["role"] == "Author":
         return get_posts_for_author(db, int(current_user["sub"]), skip, limit)
-    else:  # Reader
+    else:
         return get_posts_for_reader(db, skip, limit)
 
 @router.put("/{post_id}", response_model=PostOut, dependencies=[Depends(require_role(["Admin", "Author"]))])
@@ -56,7 +56,7 @@ def update_existing_post(
     current_user=Depends(get_current_user)
 ):
     post = get_post(db, post_id)
-    # Only author or admin can update
+
     if post.author_id != int(current_user["sub"]) and current_user["role"] != "Admin":
         raise HTTPException(status_code=403, detail="Not allowed to update this post")
     return update_post(db, post, post_update)
