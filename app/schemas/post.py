@@ -29,3 +29,20 @@ class PostOut(PostBase):
     author_id: int
     created_at: datetime
     updated_at: Optional[datetime]
+
+class PostFilters(BaseModel):
+    status: Optional[PostStatus] = None
+    author_id: Optional[int] = None
+    tags: Optional[List[str]] = None
+    created_after: Optional[datetime] = None
+    created_before: Optional[datetime] = None
+    search: Optional[str] = None
+
+class PaginatedResponse(BaseModel):
+    items: List[PostOut]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+    model_config = ConfigDict(from_attributes=True)

@@ -106,7 +106,9 @@ def test_update_comment_by_non_owner(db_session, test_user, another_user, post):
 def test_delete_comment_by_owner(db_session, test_user, post):
     comment = create_comment(db_session, test_user, post, CommentCreate(content="Bye", post_id=post.id))
     delete_comment(db_session, comment, test_user)
-    assert get_comment(db_session, comment.id) is None
+    with pytest.raises(HTTPException) as exc:
+        get_comment(db_session, comment.id)
+    assert exc.value.status_code == 404
 
 def test_delete_comment_by_non_owner(db_session, test_user, another_user, post):
     comment = create_comment(db_session, test_user, post, CommentCreate(content="Bye", post_id=post.id))
@@ -118,5 +120,9 @@ def test_cascade_delete_replies(db_session, test_user, post):
     parent = create_comment(db_session, test_user, post, CommentCreate(content="Parent", post_id=post.id))
     reply = create_comment(db_session, test_user, post, CommentCreate(content="Reply", post_id=post.id, parent_id=parent.id))
     delete_comment(db_session, parent, test_user)
-    assert get_comment(db_session, parent.id) is None
-    assert get_comment(db_session, reply.id) is None 
+    with pytest.raises(HTTPException) as exc:
+        get_comment(db_session, parent.id)
+    assert exc.value.status_code == 404
+    with pytest.raises(HTTPException) as exc:
+        get_comment(db_session, reply.id)
+    assert exc.value.status_code == 404

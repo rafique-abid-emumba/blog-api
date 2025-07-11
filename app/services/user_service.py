@@ -124,21 +124,3 @@ def update_user(db: Session, user: User, user_update: UserUpdate) -> User:
         db.rollback()
         logger.error(f"Error updating user: {e}")
         raise HTTPException(status_code=500, detail="Failed to update user")
-
-def update_user_role(db: Session, user: User, new_role: str) -> User:
-    try:
-        role = db.query(Role).filter_by(name=new_role).first()
-        if not role:
-            logger.warning(f"Role does not exist: {new_role}")
-            raise HTTPException(status_code=400, detail="Role does not exist")
-        user.role_id = role.id
-        db.commit()
-        db.refresh(user)
-        logger.info(f"User role updated: {user.username} -> {new_role}")
-        return user
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating user role: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update user role")

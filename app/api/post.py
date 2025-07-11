@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
-from app.schemas.post import PostCreate, PostUpdate, PostOut, PostStatus
+from typing import List, Optional
+from app.schemas.post import PostCreate, PostUpdate, PostOut, PostStatus, PostFilters, PaginatedResponse
 from app.services.post_service import (
-    create_post, get_post, get_posts_for_admin, 
-    get_posts_for_author, get_posts_for_reader, 
+    create_post, get_post, get_posts_for_admin_with_filters, 
+    get_posts_for_author_with_filters, get_posts_for_reader_with_filters, 
     update_post, delete_post
 )
 from app.services.user_service import get_user
 from app.db.deps import get_db
 from app.core.deps import get_current_user, require_role
+from datetime import datetime
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -34,19 +35,50 @@ def read_post(
             raise HTTPException(status_code=403, detail="You do not have access to this draft post")
     return post
 
-@router.get("/", response_model=List[PostOut])
+@router.get("/", response_model=PaginatedResponse)
 def list_posts(
-    skip: int = 0,
-    limit: int = 10,
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(10, ge=1, le=100, description="Items per page"),
+    status: Optional[PostStatus] = Query(None, description="Filter by post status"),
+    author_id: Optional[int] = Query(None, ge=1, description="Filter by author ID"),
+    tags: Optional[str] = Query(None, description="Comma-separated list of tags"),
+    created_after: Optional[datetime] = Query(None, description="Filter posts created after this date"),
+    created_before: Optional[datetime] = Query(None, description="Filter posts created before this date"),
+    search: Optional[str] = Query(None, description="Search in title and content"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
+    skip = (page - 1) * size
+    
+    tag_list = None
+    if tags:
+        tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+    
+    filters = PostFilters(
+        status=status,
+        author_id=author_id,
+        tags=tag_list,
+        created_after=created_after,
+        created_before=created_before,
+        search=search
+    )
+    
     if current_user["role"] == "Admin":
-        return get_posts_for_admin(db, skip, limit)
+        posts, total = get_posts_for_admin_with_filters(db, filters, skip, size)
     elif current_user["role"] == "Author":
-        return get_posts_for_author(db, int(current_user["sub"]), skip, limit)
+        posts, total = get_posts_for_author_with_filters(db, int(current_user["sub"]), filters, skip, size)
     else:
-        return get_posts_for_reader(db, skip, limit)
+        posts, total = get_posts_for_reader_with_filters(db, filters, skip, size)
+    
+    pages = (total + size - 1) // size
+    
+    return PaginatedResponse(
+        items=posts,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
+    )
 
 @router.put("/{post_id}", response_model=PostOut, dependencies=[Depends(require_role(["Admin", "Author"]))])
 def update_existing_post(
@@ -68,7 +100,6 @@ def delete_existing_post(
     current_user=Depends(get_current_user)
 ):
     post = get_post(db, post_id)
-    # Only author or admin can delete
     if post.author_id != int(current_user["sub"]) and current_user["role"] != "Admin":
         raise HTTPException(status_code=403, detail="Not allowed to delete this post")
     delete_post(db, post)
