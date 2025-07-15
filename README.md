@@ -10,7 +10,7 @@ A robust, secure, and production-grade RESTful API for a blog platform, built wi
   - Registration, login (JWT access & refresh tokens)
   - Profile view/update
   - Password hashing (bcrypt)
-  - Role-Based Access Control (Admin, Author, Reader)
+  - Role-Based Access Control (Admin, Author, Reader) via FastAPI dependencies
 
 - **Post Management**
   - CRUD for blog posts (draft/published)
@@ -32,11 +32,13 @@ A robust, secure, and production-grade RESTful API for a blog platform, built wi
 
 - **Security**
   - JWT authentication (access & refresh)
-  - RBAC middleware
+  - RBAC enforced via FastAPI dependencies (`require_role`)
   - Input validation
 
 - **Testing & Quality**
   - Pytest for unit/integration tests
+  - In-memory SQLite for fast, isolated test runs
+  - Clean, idiomatic, DRY Python code (no comments in codebase)
 
 - **Performance**
   - Redis caching
@@ -91,6 +93,7 @@ GROQ_API_KEY=your-groq-key
 QDRANT_URL=http://localhost:6333
 REDIS_URL=redis://localhost:6379/0
 ```
+- All secrets are loaded and validated using Pydantic Settings.
 
 ### 5. Run database migrations
 ```sh
@@ -126,9 +129,37 @@ poetry run uvicorn app.main:app --reload
 
 ## 🧪 Testing
 
-Run all tests with:
+- All tests use **in-memory SQLite** for speed and isolation.=
+- To run all tests:
 ```sh
-poetry run pytest
+poetry run python -m pytest -v app/tests/
+```
+
+## Running Tests with Coverage
+
+To run tests and measure code coverage:
+
+```bash
+pytest --cov=app --cov-report=term-missing app/tests
+```
+
+To generate an HTML coverage report:
+
+```bash
+pytest --cov=app --cov-report=html app/tests
+# Open the report in your browser:
+# On Windows:
+start htmlcov/index.html
+# On macOS:
+open htmlcov/index.html
+# On Linux:
+x-www-browser htmlcov/index.html
+```
+
+Make sure you have `pytest-cov` installed:
+
+```bash
+poetry add --dev pytest-cov
 ```
 
 ---
@@ -137,6 +168,27 @@ poetry run pytest
 
 - API documentation is auto-generated at `/docs` (Swagger UI).
 - For architecture, design decisions, and GenAI integration, see the `docs/` folder (to be created).
+
+---
+
+## 🔐 Role-Based Access Control (RBAC)
+
+RBAC is enforced using FastAPI dependencies (`require_role`).
+
+| Role   | Can Create Posts | Can Edit Own Posts | Can Edit Any Post | Can Delete Own Posts | Can Delete Any Post | Can View Drafts | Can Manage Users |
+|--------|:----------------:|:------------------:|:-----------------:|:-------------------:|:-------------------:|:---------------:|:----------------:|
+| Admin  |        ✅        |        ✅          |        ✅         |        ✅           |        ✅           |       ✅        |       ✅         |
+| Author |        ✅        |        ✅          |        ❌         |        ✅           |        ❌           | Own only        |       ❌         |
+| Reader |        ❌        |        ❌          |        ❌         |        ❌           |        ❌           | Published only  |       ❌         |
+
+---
+
+## 🧩 Architecture & Code Quality
+
+- **Clean architecture:** API layer (routing), service layer (business logic), models, schemas, etc.
+- **Error handling:** Consistent use of custom exceptions and HTTP status codes in the service layer.
+- **Validation:** Input validation for registration, post creation, etc.
+- **No comments:** Codebase is clean and self-explanatory, following DRY and idiomatic Python best practices.
 
 ---
 
@@ -168,3 +220,21 @@ poetry run pytest
 ---
 
 > **Note:** This project is under active development. Features and documentation will evolve as the project progresses. 
+
+---
+
+## 🔑 Authentication, Token Rotation, and Revocation
+
+- **JWT access and refresh tokens** are used for authentication.
+- **Refresh token rotation** is implemented: every time a refresh token is used, a new one is issued and the old one is blacklisted.
+- **Token revocation/blacklisting** is handled using Redis. If a refresh token is used again after rotation, it is rejected.
+- **Redis setup:**
+  - For development, run Redis with Docker:
+    ```sh
+    docker run -d --name blog-redis -p 6379:6379 redis
+    ```
+  - Set `REDIS_URL=redis://localhost:6379/0` in your `.env` file.
+  - In production, use a managed Redis service (AWS ElastiCache, Azure, Redis Cloud, etc.).
+- **All token logic is modularized in `auth_service.py` for clean architecture.**
+
+---
