@@ -8,8 +8,8 @@ class PostStatus(str, Enum):
     published = "published"
 
 class PostBase(BaseModel):
-    title: constr(min_length=1)
-    content: constr(min_length=1)
+    title: constr(min_length=1, max_length=300)
+    content: constr(min_length=1, max_length=5000)
     status: PostStatus = PostStatus.draft
     tags: Optional[List[str]] = None
 
@@ -17,8 +17,8 @@ class PostCreate(PostBase):
     pass
 
 class PostUpdate(BaseModel):
-    title: Optional[constr(min_length=1)] = None
-    content: Optional[constr(min_length=1)] = None
+    title: Optional[constr(min_length=1, max_length=300)] = None
+    content: Optional[constr(min_length=1, max_length=5000)] = None
     status: Optional[PostStatus] = None
     tags: Optional[List[str]] = None
 

@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+DEFAULT_ROLE = "Reader"
+
 def is_duplicate_username(db: Session, username: str) -> bool:
     return db.query(User).filter(User.username == username).first() is not None
 
@@ -29,7 +31,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_user(db: Session, user_id: int) -> User:
-    """Get user by ID"""
     try:
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
@@ -58,8 +59,7 @@ def create_user(db: Session, user_in: UserCreate) -> User:
             )
         
         hashed_password = get_password_hash(user_in.password)
-        # Default role: Reader (or fetch by name)
-        role = db.query(Role).filter(Role.name == "Reader").first()
+        role = db.query(Role).filter(Role.name == DEFAULT_ROLE).first()
         user = User(
             username=user_in.username,
             email=user_in.email,
