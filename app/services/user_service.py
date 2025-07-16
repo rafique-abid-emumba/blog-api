@@ -6,12 +6,11 @@ from passlib.context import CryptContext
 from fastapi import HTTPException
 import logging
 import re
+from app.constants import DEFAULT_ROLE, PASSWORD_REGEX, PASSWORD_REQUIREMENTS_MSG
 
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-DEFAULT_ROLE = "Reader"
 
 def is_duplicate_username(db: Session, username: str) -> bool:
     return db.query(User).filter(User.username == username).first() is not None
@@ -21,7 +20,7 @@ def is_duplicate_email(db: Session, email: str) -> bool:
 
 def is_strong_password(password: str) -> bool:
     # Minimum 8 chars, 1 uppercase, 1 number, 1 special char
-    pattern = r'^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\\\-={{}}\[\]:\";\'<>?,./]).{8,}$'
+    pattern = PASSWORD_REGEX
     return bool(re.match(pattern, password))
 
 def get_password_hash(password: str) -> str:
@@ -55,7 +54,7 @@ def create_user(db: Session, user_in: UserCreate) -> User:
             logger.warning("Password does not meet strength requirements")
             raise HTTPException(
                 status_code=400,
-                detail="Password must be at least 8 characters long, contain at least 1 uppercase letter, 1 number, and 1 special character."
+                detail=PASSWORD_REQUIREMENTS_MSG
             )
         
         hashed_password = get_password_hash(user_in.password)
@@ -111,7 +110,7 @@ def update_user(db: Session, user: User, user_update: UserUpdate) -> User:
                 logger.warning("Password does not meet strength requirements")
                 raise HTTPException(
                     status_code=400,
-                    detail="Password must be at least 8 characters long, contain at least 1 uppercase letter, 1 number, and 1 special character."
+                    detail=PASSWORD_REQUIREMENTS_MSG
                 )
             user.hashed_password = get_password_hash(user_update.password)
         db.commit()
