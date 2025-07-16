@@ -1,11 +1,32 @@
 import pytest
 from fastapi import HTTPException
+from datetime import datetime, timedelta, timezone
+from app.models.post import PostStatus
+from app.schemas.post import PostCreate, PostUpdate, PostFilters
 from app.services.post_service import (
-    create_post, get_post, get_posts, update_post, delete_post
+    create_post, get_post, get_posts, update_post, delete_post,
+    get_posts_with_filters
 )
-from app.schemas.post import PostCreate, PostUpdate, PostStatus
-from app.models.user import User
-from app.models.role import Role
+
+@pytest.fixture
+def published_post(db_session, test_user):
+    post_data = PostCreate(
+        title="Published Post",
+        content="Some content",
+        status=PostStatus.published,
+        tags=["python", "fastapi"]
+    )
+    return create_post(db_session, test_user, post_data)
+
+@pytest.fixture
+def draft_post(db_session, test_user):
+    post_data = PostCreate(
+        title="Draft Post",
+        content="Draft content",
+        status=PostStatus.draft,
+        tags=["draft", "test"]
+    )
+    return create_post(db_session, test_user, post_data)
 
 class TestPostService:
     
@@ -21,17 +42,17 @@ class TestPostService:
         assert post.content == "This is a test post content."
         assert post.status.name == PostStatus.published.value
         assert post.author_id == test_user.id
-        assert len(post.post_tags) == 2  # Should have 2 tags
+        assert len(post.post_tags) == 2
     
     def test_create_post_with_duplicate_tags(self, db_session, test_user):
         post_data = PostCreate(
             title="Test Post",
             content="This is a test post content.",
             status=PostStatus.draft,
-            tags=["python", "fastapi", "python"]  # Duplicate tag
+            tags=["python", "fastapi", "python"]
         )
         post = create_post(db_session, test_user, post_data)
-        assert len(post.post_tags) == 2  # Should only have 2 unique tags
+        assert len(post.post_tags) == 2 
     
     def test_create_post_no_tags(self, db_session, test_user):
         post_data = PostCreate(
@@ -41,10 +62,9 @@ class TestPostService:
         )
         post = create_post(db_session, test_user, post_data)
         assert post.title == "Test Post"
-        assert len(post.post_tags) == 0  # No tags
+        assert len(post.post_tags) == 0
     
     def test_get_post_success(self, db_session, test_user):
-        # Create a post first
         post_data = PostCreate(
             title="Test Post",
             content="This is a test post content.",
@@ -52,17 +72,16 @@ class TestPostService:
         )
         created_post = create_post(db_session, test_user, post_data)
         
-        # Get the post
         post = get_post(db_session, created_post.id)
         assert post is not None
         assert post.title == "Test Post"
     
     def test_get_post_not_found(self, db_session):
-        post = get_post(db_session, 999)  # Non-existent ID
-        assert post is None
+        with pytest.raises(HTTPException) as exc_info:
+            get_post(db_session, 999)
+        assert exc_info.value.status_code == 404
     
     def test_get_posts_success(self, db_session, test_user):
-        # Create multiple posts
         post_data1 = PostCreate(
             title="Post 1",
             content="Content 1",
@@ -76,12 +95,10 @@ class TestPostService:
         create_post(db_session, test_user, post_data1)
         create_post(db_session, test_user, post_data2)
         
-        # Get posts
         posts = get_posts(db_session, skip=0, limit=10)
         assert len(posts) == 2
     
     def test_get_posts_pagination(self, db_session, test_user):
-        # Create multiple posts
         for i in range(5):
             post_data = PostCreate(
                 title=f"Post {i}",
@@ -90,15 +107,13 @@ class TestPostService:
             )
             create_post(db_session, test_user, post_data)
         
-        # Test pagination
         posts = get_posts(db_session, skip=0, limit=3)
         assert len(posts) == 3
         
         posts = get_posts(db_session, skip=3, limit=3)
-        assert len(posts) == 2  # Only 2 posts left
+        assert len(posts) == 2
     
     def test_update_post_success(self, db_session, test_user):
-        # Create a post first
         post_data = PostCreate(
             title="Original Title",
             content="Original content",
@@ -106,7 +121,6 @@ class TestPostService:
         )
         post = create_post(db_session, test_user, post_data)
         
-        # Update the post
         update_data = PostUpdate(
             title="Updated Title",
             content="Updated content",
@@ -118,7 +132,6 @@ class TestPostService:
         assert updated_post.status.name == PostStatus.published.value
     
     def test_update_post_partial(self, db_session, test_user):
-        # Create a post first
         post_data = PostCreate(
             title="Original Title",
             content="Original content",
@@ -126,15 +139,39 @@ class TestPostService:
         )
         post = create_post(db_session, test_user, post_data)
         
-        # Update only title
         update_data = PostUpdate(title="Updated Title")
         updated_post = update_post(db_session, post, update_data)
         assert updated_post.title == "Updated Title"
-        assert updated_post.content == "Original content"  # Unchanged
-        assert updated_post.status.name == PostStatus.draft.value  # Unchanged
+        assert updated_post.content == "Original content"
+        assert updated_post.status.name == PostStatus.draft.value
+    
+    def test_update_post_tags(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Tag Update Post",
+            content="Content for tag update",
+            status=PostStatus.published,
+            tags=["python", "fastapi"]
+        )
+        post = create_post(db_session, test_user, post_data)
+        assert len(post.post_tags) == 2
+
+        update_data = PostUpdate(tags=["ai", "ml"])
+        updated_post = update_post(db_session, post, update_data)
+        tag_names = [pt.tag.name for pt in updated_post.post_tags]
+        assert set(tag_names) == {"ai", "ml"}
+        assert len(updated_post.post_tags) == 2
+
+        update_data = PostUpdate(tags=[])
+        updated_post = update_post(db_session, post, update_data)
+        assert len(updated_post.post_tags) == 0
+
+        update_data = PostUpdate(tags=["python"])
+        updated_post = update_post(db_session, post, update_data)
+        tag_names = [pt.tag.name for pt in updated_post.post_tags]
+        assert set(tag_names) == {"python"}
+        assert len(updated_post.post_tags) == 1
     
     def test_delete_post_success(self, db_session, test_user):
-        # Create a post first
         post_data = PostCreate(
             title="Test Post",
             content="This is a test post content.",
@@ -143,9 +180,67 @@ class TestPostService:
         post = create_post(db_session, test_user, post_data)
         post_id = post.id
         
-        # Delete the post
         delete_post(db_session, post)
         
-        # Verify it's deleted
-        deleted_post = get_post(db_session, post_id)
-        assert deleted_post is None 
+        with pytest.raises(HTTPException) as exc_info:
+            get_post(db_session, post_id)
+        assert exc_info.value.status_code == 404
+
+def test_filter_by_status(db_session, test_user, published_post, draft_post):
+    filters = PostFilters(status=PostStatus.published)
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert all(p.status == PostStatus.published for p in posts)
+    filters = PostFilters(status=PostStatus.draft)
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert all(p.status == PostStatus.draft for p in posts)
+
+def test_filter_by_author(db_session, test_user, published_post):
+    post_data = PostCreate(
+        title="Author's Post",
+        content="By author",
+        status=PostStatus.published,
+        tags=["author"]
+    )
+    author_post = create_post(db_session, test_user, post_data)
+    filters = PostFilters(author_id=test_user.id)
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert all(p.author_id == test_user.id for p in posts)
+
+def test_filter_by_tags(db_session, test_user, published_post):
+    filters = PostFilters(tags=["python"])
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert any("python" in p.tags for p in posts)
+    filters = PostFilters(tags=["fastapi"])
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert any("fastapi" in p.tags for p in posts)
+
+def test_filter_by_date(db_session, test_user, published_post):
+    now = datetime.now(timezone.utc)
+    filters = PostFilters(created_after=now + timedelta(days=1))
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert total == 0
+    filters = PostFilters(created_before=now + timedelta(days=1))
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert total >= 1
+
+def test_search_in_title_and_content(db_session, test_user, published_post):
+    filters = PostFilters(search="Published")
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert any("Published" in p.title for p in posts)
+    filters = PostFilters(search="content")
+    posts, total = get_posts_with_filters(db_session, filters)
+    assert any("content" in p.content for p in posts)
+
+def test_pagination(db_session, test_user):
+    for i in range(15):
+        create_post(db_session, test_user, PostCreate(
+            title=f"Post {i}",
+            content="Bulk content",
+            status=PostStatus.published,
+            tags=["bulk"]
+        ))
+    filters = PostFilters(status=PostStatus.published)
+    posts, total = get_posts_with_filters(db_session, filters, skip=0, limit=10)
+    assert len(posts) == 10
+    posts2, _ = get_posts_with_filters(db_session, filters, skip=10, limit=10)
+    assert len(posts2) == min(5, total - 10)

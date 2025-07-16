@@ -10,7 +10,6 @@ from app.models.role import Role
 class TestUserService:
     
     def test_create_user_success(self, db_session):
-        # Create test roles
         admin_role = Role(name="Admin")
         author_role = Role(name="Author")
         reader_role = Role(name="Reader")
@@ -28,7 +27,6 @@ class TestUserService:
         assert user.role_id == 3
     
     def test_create_user_duplicate_username(self, db_session):
-        # Create first user
         user_data1 = UserCreate(
             username="testuser",
             email="test1@example.com",
@@ -36,7 +34,6 @@ class TestUserService:
         )
         create_user(db_session, user_data1)
         
-        # Try to create second user with same username
         user_data2 = UserCreate(
             username="testuser",
             email="test2@example.com",
@@ -48,7 +45,6 @@ class TestUserService:
         assert "Username already exists" in exc_info.value.detail
     
     def test_create_user_duplicate_email(self, db_session):
-        # Create first user
         user_data1 = UserCreate(
             username="user1",
             email="test@example.com",
@@ -56,7 +52,6 @@ class TestUserService:
         )
         create_user(db_session, user_data1)
         
-        # Try to create second user with same email
         user_data2 = UserCreate(
             username="user2",
             email="test@example.com",
@@ -71,7 +66,7 @@ class TestUserService:
         user_data = UserCreate(
             username="testuser",
             email="test@example.com",
-            password="weak"  # Too short, no uppercase, no number, no special char
+            password="weak"
         )
         with pytest.raises(HTTPException) as exc_info:
             create_user(db_session, user_data)
@@ -107,10 +102,10 @@ class TestUserService:
         assert is_strong_password("Another1@") == True
     
     def test_is_strong_password_invalid(self):
-        assert is_strong_password("weak") == False  # Too short
-        assert is_strong_password("nouppercase123!") == False  # No uppercase
-        assert is_strong_password("NoNumbers!") == False  # No numbers
-        assert is_strong_password("NoSpecial123") == False  # No special chars
+        assert is_strong_password("weak") == False
+        assert is_strong_password("nouppercase123!") == False
+        assert is_strong_password("NoNumbers!") == False
+        assert is_strong_password("NoSpecial123") == False
     
     def test_is_duplicate_username_true(self, db_session, test_user):
         assert is_duplicate_username(db_session, "testuser") == True

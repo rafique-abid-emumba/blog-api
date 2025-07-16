@@ -20,4 +20,8 @@ class Post(Base):
 
     author = relationship("User", back_populates="posts")
     post_tags = relationship("PostTag", back_populates="post", cascade="all, delete-orphan")
-    comments = relationship("Comment", back_populates="post") 
+    comments = relationship("Comment", back_populates="post", cascade="all, delete-orphan") 
+
+    @property
+    def tags(self):
+        return [pt.tag.name for pt in self.post_tags]

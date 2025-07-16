@@ -96,11 +96,23 @@ def update_user(db: Session, user: User, user_update: UserUpdate) -> User:
             logger.warning("Attempted to update non-existent user")
             raise HTTPException(status_code=404, detail="User not found")
         
-        if user_update.username is not None:
+        if user_update.username is not None and user_update.username != user.username:
+            if is_duplicate_username(db, user_update.username):
+                logger.warning(f"Username already exists: {user_update.username}")
+                raise HTTPException(status_code=400, detail="Username already exists")
             user.username = user_update.username
-        if user_update.email is not None:
+        if user_update.email is not None and user_update.email != user.email:
+            if is_duplicate_email(db, user_update.email):
+                logger.warning(f"Email already exists: {user_update.email}")
+                raise HTTPException(status_code=400, detail="Email already exists")
             user.email = user_update.email
-        if user_update.password is not None:
+        if user_update.password is not None and user_update.password != user.password:
+            if not is_strong_password(user_update.password):
+                logger.warning("Password does not meet strength requirements")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Password must be at least 8 characters long, contain at least 1 uppercase letter, 1 number, and 1 special character."
+                )
             user.hashed_password = get_password_hash(user_update.password)
         db.commit()
         db.refresh(user)
@@ -112,21 +124,3 @@ def update_user(db: Session, user: User, user_update: UserUpdate) -> User:
         db.rollback()
         logger.error(f"Error updating user: {e}")
         raise HTTPException(status_code=500, detail="Failed to update user")
-
-def update_user_role(db: Session, user: User, new_role: str) -> User:
-    try:
-        role = db.query(Role).filter_by(name=new_role).first()
-        if not role:
-            logger.warning(f"Role does not exist: {new_role}")
-            raise HTTPException(status_code=400, detail="Role does not exist")
-        user.role_id = role.id
-        db.commit()
-        db.refresh(user)
-        logger.info(f"User role updated: {user.username} -> {new_role}")
-        return user
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating user role: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update user role")
