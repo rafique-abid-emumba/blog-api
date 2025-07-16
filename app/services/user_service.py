@@ -2,11 +2,11 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.role import Role
 from app.schemas.user import UserCreate, UserUpdate
-from passlib.context import CryptContext
 from fastapi import HTTPException
 import logging
 import re
 from app.constants import DEFAULT_ROLE, PASSWORD_REGEX, PASSWORD_REQUIREMENTS_MSG
+from app.utils import verify_password, get_password_hash, is_strong_password
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +17,6 @@ def is_duplicate_username(db: Session, username: str) -> bool:
 
 def is_duplicate_email(db: Session, email: str) -> bool:
     return db.query(User).filter(User.email == email).first() is not None
-
-def is_strong_password(password: str) -> bool:
-    # Minimum 8 chars, 1 uppercase, 1 number, 1 special char
-    pattern = PASSWORD_REGEX
-    return bool(re.match(pattern, password))
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)

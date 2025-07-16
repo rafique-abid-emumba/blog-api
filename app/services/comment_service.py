@@ -7,15 +7,9 @@ from fastapi import HTTPException, status
 from typing import List, Optional
 import logging
 from app.constants import MAX_COMMENTS_PER_USER_PER_POST, MAX_COMMENTS_PER_POST, MAX_COMMENT_DEPTH
+from app.utils import get_comment_depth
 
 logger = logging.getLogger(__name__)
-
-def get_comment_depth(comment):
-    depth = 1
-    while comment.parent is not None:
-        depth += 1
-        comment = comment.parent
-    return depth
 
 def validate_user_comment_limit(db, user_id, post_id):
     count = db.query(Comment).filter(Comment.post_id == post_id, Comment.user_id == user_id).count()
