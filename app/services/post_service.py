@@ -8,6 +8,7 @@ from app.schemas.post import PostCreate, PostUpdate, PostFilters
 from fastapi import HTTPException
 import logging
 from typing import List, Tuple
+from app.genai.embeddings_store import embed_and_store_post, delete_post_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,8 @@ def create_post(db: Session, author: User, post_in: PostCreate) -> Post:
         db.commit()
         db.refresh(post)
         logger.info(f"Post created successfully: {post.title} (ID: {post.id})")
+        
+        embed_and_store_post(post.id, post.content)
         return post
     except Exception as e:
         db.rollback()
@@ -190,6 +193,9 @@ def update_post(db: Session, post: Post, post_update: PostUpdate) -> Post:
         db.commit()
         db.refresh(post)
         logger.info(f"Post updated successfully: {post.title} (ID: {post.id})")
+        
+        delete_post_embeddings(post.id)
+        embed_and_store_post(post.id, post.content)
         return post
     except HTTPException:
         raise
@@ -207,6 +213,8 @@ def delete_post(db: Session, post: Post):
         db.delete(post)
         db.commit()
         logger.info(f"Post deleted: ID {post.id}")
+        
+        delete_post_embeddings(post.id)
     except HTTPException:
         raise
     except Exception as e:

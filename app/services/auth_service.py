@@ -4,7 +4,6 @@ from datetime import timedelta
 from fastapi import HTTPException, status
 from app.core.security import (
     create_access_token, create_refresh_token, verify_refresh_token,
-    REFRESH_SECRET_KEY, ALGORITHM
 )
 from app.core.token_blacklist import is_token_blacklisted, blacklist_token
 

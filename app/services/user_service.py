@@ -10,19 +10,11 @@ from app.utils import verify_password, get_password_hash, is_strong_password
 
 logger = logging.getLogger(__name__)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 def is_duplicate_username(db: Session, username: str) -> bool:
     return db.query(User).filter(User.username == username).first() is not None
 
 def is_duplicate_email(db: Session, email: str) -> bool:
     return db.query(User).filter(User.email == email).first() is not None
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
 
 def get_user(db: Session, user_id: int) -> User:
     try:
