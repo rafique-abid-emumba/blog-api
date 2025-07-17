@@ -13,9 +13,13 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     GROQ_API_KEY: str = "dev-groq-api-key"
     LLM_MODEL: str = "deepseek-r1-distill-llama-70b"
+    QDRANT_HOST: str = "localhost"
+    QDRANT_PORT: int = 6333
+    QDRANT_API_KEY: str = ""  # Empty by default for local dev
+    QDRANT_COLLECTION: str = "blog_posts"
 
     REQUIRED_ENV_VARS: ClassVar[List[str]] = [
-        "SECRET_KEY", "REFRESH_SECRET_KEY", "DATABASE_URL", "REDIS_URL", "GROQ_API_KEY", "LLM_MODEL"
+        "SECRET_KEY", "REFRESH_SECRET_KEY", "DATABASE_URL", "GROQ_API_KEY", "LLM_MODEL"
     ]
 
     model_config = SettingsConfigDict(env_file=".env")

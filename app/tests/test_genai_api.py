@@ -33,7 +33,7 @@ def test_summarize_post():
 def test_qa_post():
     post_id = 123
     post_content = "FastAPI is a modern, fast web framework for building APIs with Python. It is based on standard Python type hints."
-    from app.genai.embeddings_store import embed_and_store_post
+    from app.services.embedding_service import embed_and_store_post
     embed_and_store_post(post_id, post_content)
     payload = {
         "post_id": post_id,

@@ -255,7 +255,7 @@ GROQ_API_KEY=your-groq-api-key
 LLM_PROVIDER=groq
 LLM_MODEL=llama3-70b-8192
 EMBEDDING_PROVIDER=huggingface
-VECTOR_DB_PROVIDER=chroma
+VECTOR_DB_PROVIDER=qdrant
 ```
 
 See `app/core/config.py` for all available settings.

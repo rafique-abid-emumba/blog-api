@@ -8,7 +8,7 @@ from app.schemas.post import PostCreate, PostUpdate, PostFilters
 from fastapi import HTTPException
 import logging
 from typing import List, Tuple
-from app.genai.embeddings_store import embed_and_store_post, delete_post_embeddings
+from app.services.embedding_service import embed_and_store_post, delete_post_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -194,8 +194,9 @@ def update_post(db: Session, post: Post, post_update: PostUpdate) -> Post:
         db.refresh(post)
         logger.info(f"Post updated successfully: {post.title} (ID: {post.id})")
         
-        delete_post_embeddings(post.id)
-        embed_and_store_post(post.id, post.content)
+        if post_update.content is not None:
+            delete_post_embeddings(post.id)
+            embed_and_store_post(post.id, post.content)
         return post
     except HTTPException:
         raise
@@ -210,11 +211,11 @@ def delete_post(db: Session, post: Post):
             logger.warning("Attempted to delete non-existent post")
             raise HTTPException(status_code=404, detail="Post not found")
         
+        delete_post_embeddings(post.id)
+
         db.delete(post)
         db.commit()
         logger.info(f"Post deleted: ID {post.id}")
-        
-        delete_post_embeddings(post.id)
     except HTTPException:
         raise
     except Exception as e:
