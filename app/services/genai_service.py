@@ -1,7 +1,10 @@
-
 import logging
 from fastapi import HTTPException
-from app.genai.pipelines import suggest_title_and_tags, summarize_post, answer_question_about_post
+from app.genai.pipelines import suggest_title_and_tags, summarize_post, answer_question_about_post, analyze_comment_sentiment, suggest_trending_tags
+from app.schemas.genai import CommentAnalysisResponse
+from app.models.post import Post
+from app.models.comment import Comment
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -37,4 +40,72 @@ def answer_post_question(post_id: int, question: str) -> dict:
         raise
     except Exception as e:
         logger.error(f"Error in GenAI Q&A: {e}")
-        raise HTTPException(status_code=500, detail="Failed to answer question") 
+        raise HTTPException(status_code=500, detail="Failed to answer question")
+    
+def analyze_comment(comment: str) -> CommentAnalysisResponse:
+    try:
+        analysis_result = analyze_comment_sentiment(comment)
+        result = CommentAnalysisResponse(
+            comment=comment,
+            sentiment=analysis_result['sentiment'],
+            is_abusive=analysis_result['is_abusive']
+        )
+        logger.info("GenAI comment analysis succeeded")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in GenAI comment analysis: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze comment")
+
+def get_trending_tags_ai(db, top_k: int = 10, days: int = 7) -> dict:
+    """
+    Get trending tags using GenAI analysis of recent posts and their top-level comments.
+    """
+    try:
+        since = datetime.now(timezone.utc) - timedelta(days=days)
+        posts = db.query(Post).filter(Post.created_at >= since).all()
+        
+        posts_with_comments = []
+        for post in posts:
+            top_comments = db.query(Comment).filter(
+                Comment.post_id == post.id,
+                Comment.parent_id == None
+            ).limit(10).all()
+            
+            post_data = {
+                "title": post.title,
+                "content": post.content,
+                "tags": [pt.tag.name for pt in post.post_tags],
+                "comments": [
+                    {
+                        "content": comment.content,
+                        "sentiment": comment.sentiment,
+                        "is_abusive": bool(comment.is_abusive) if comment.is_abusive is not None else None
+                    }
+                    for comment in top_comments
+                ]
+            }
+            posts_with_comments.append(post_data)
+        
+        if not posts_with_comments:
+            logger.warning(f"No posts found in the last {days} days for trending analysis")
+            return {"trending_tags": []}
+        
+        trending_tags = suggest_trending_tags(posts_with_comments, top_k=top_k)
+        
+        result = {
+            "trending_tags": trending_tags,
+            "analysis_period_days": days,
+            "posts_analyzed": len(posts_with_comments),
+            "total_comments_analyzed": sum(len(p["comments"]) for p in posts_with_comments)
+        }
+        
+        logger.info(f"GenAI trending tags analysis succeeded: {len(trending_tags)} tags identified")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in GenAI trending tags analysis: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze trending tags")

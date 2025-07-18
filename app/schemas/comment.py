@@ -19,5 +19,9 @@ class CommentOut(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime]
     replies: Optional[List['CommentOut']] = None
+    sentiment: Optional[str] = None
+    is_abusive: Optional[bool] = None
 
-    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True) 
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+
+CommentOut.model_rebuild() 

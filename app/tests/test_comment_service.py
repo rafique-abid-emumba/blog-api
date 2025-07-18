@@ -11,6 +11,7 @@ from app.services.post_service import create_post
 from app.services.user_service import create_user
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
+from unittest.mock import patch
 
 @pytest.fixture
 def post(db_session, test_user):
@@ -126,3 +127,57 @@ def test_cascade_delete_replies(db_session, test_user, post):
     with pytest.raises(HTTPException) as exc:
         get_comment(db_session, reply.id)
     assert exc.value.status_code == 404
+
+def test_create_comment_with_sentiment_and_abuse(db_session, test_user, post):
+    with patch("app.services.comment_service.analyze_comment") as mock_analyze:
+        mock_analyze.return_value.sentiment = "positive"
+        mock_analyze.return_value.abusive_flag = False
+
+        comment_in = CommentCreate(content="Nice post!", post_id=post.id)
+        comment = create_comment(db_session, test_user, post, comment_in)
+        assert comment.sentiment == "positive"
+        assert comment.is_abusive == 0
+
+def test_create_comment_abusive_flag(db_session, test_user, post):
+    with patch("app.services.comment_service.analyze_comment") as mock_analyze:
+        mock_analyze.return_value.sentiment = "negative"
+        mock_analyze.return_value.abusive_flag = True
+
+        comment_in = CommentCreate(content="You are terrible!", post_id=post.id)
+        comment = create_comment(db_session, test_user, post, comment_in)
+        assert comment.sentiment == "negative"
+        assert comment.is_abusive == 1
+
+def test_update_comment_reanalyzes_sentiment_and_abuse(db_session, test_user, post):
+    with patch("app.services.comment_service.analyze_comment") as mock_analyze:
+        mock_analyze.return_value.sentiment = "neutral"
+        mock_analyze.return_value.abusive_flag = False
+        comment = create_comment(db_session, test_user, post, CommentCreate(content="OK", post_id=post.id))
+        assert comment.sentiment == "neutral"
+        assert comment.is_abusive == 0
+
+        mock_analyze.return_value.sentiment = "negative"
+        mock_analyze.return_value.abusive_flag = True
+        updated = update_comment(db_session, comment, CommentUpdate(content="You suck!"), test_user)
+        assert updated.sentiment == "negative"
+        assert updated.is_abusive == 1
+
+def test_create_comment_analysis_failure_defaults(db_session, test_user, post):
+    with patch("app.services.comment_service.analyze_comment", side_effect=Exception("GenAI error")):
+        comment_in = CommentCreate(content="Whatever", post_id=post.id)
+        comment = create_comment(db_session, test_user, post, comment_in)
+        assert comment.sentiment == "neutral"
+        assert comment.is_abusive == 0
+
+def test_update_comment_analysis_failure_keeps_existing(db_session, test_user, post):
+    with patch("app.services.comment_service.analyze_comment") as mock_analyze:
+        mock_analyze.return_value.sentiment = "positive"
+        mock_analyze.return_value.abusive_flag = False
+        comment = create_comment(db_session, test_user, post, CommentCreate(content="Nice!", post_id=post.id))
+        assert comment.sentiment == "positive"
+        assert comment.is_abusive == 0
+
+    with patch("app.services.comment_service.analyze_comment", side_effect=Exception("GenAI error")):
+        updated = update_comment(db_session, comment, CommentUpdate(content="Changed!"), test_user)
+        assert updated.sentiment == "positive"
+        assert updated.is_abusive == 0

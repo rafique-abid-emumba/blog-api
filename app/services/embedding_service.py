@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def embed_and_store_post(post_id: int, post_content: str):
     logger.info(f"Embedding and storing post {post_id}")
     try:
-        chunks = [post_content[i:i+CHUNK_SIZE] for i in range(0, len(post_content), CHUNK_SIZE)]  # <-- use constant
+        chunks = [post_content[i:i+CHUNK_SIZE] for i in range(0, len(post_content), CHUNK_SIZE)] 
         nodes = [
             TextNode(text=chunk, metadata={"post_id": post_id, "chunk_index": idx})
             for idx, chunk in enumerate(chunks)

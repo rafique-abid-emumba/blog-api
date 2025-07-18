@@ -22,3 +22,17 @@ class QARequest(BaseModel):
 class QAResponse(BaseModel):
     answer: str
     citations: List[str] 
+
+class CommentAnalysisRequest(BaseModel):
+    comment: constr(min_length=1, max_length=500)
+
+class CommentAnalysisResponse(BaseModel):
+    comment: str
+    sentiment: str
+    is_abusive: bool
+
+class TrendingTagsResponse(BaseModel):
+    trending_tags: List[str]
+    analysis_period_days: int
+    posts_analyzed: int
+    total_comments_analyzed: int
