@@ -5,8 +5,9 @@ from app.models.post import PostStatus
 from app.schemas.post import PostCreate, PostUpdate, PostFilters
 from app.services.post_service import (
     create_post, get_post, get_posts, update_post, delete_post,
-    get_posts_with_filters
+    get_posts_with_filters, create_quick_post
 )
+from unittest.mock import patch
 
 @pytest.fixture
 def published_post(db_session, test_user):
@@ -244,3 +245,30 @@ def test_pagination(db_session, test_user):
     assert len(posts) == 10
     posts2, _ = get_posts_with_filters(db_session, filters, skip=10, limit=10)
     assert len(posts2) == min(5, total - 10)
+
+def test_create_quick_post_success(db_session, test_user):
+    """Test successful quick post creation with AI-generated title and tags"""
+    with patch("app.services.post_service.get_title_and_tags_for_post") as mock_ai:
+        mock_ai.return_value = {
+            "title": "AI Generated Title",
+            "tags": ["ai", "python", "fastapi"]
+        }
+        
+        post = create_quick_post(db_session, test_user, "This is some content for the quick post.")
+        
+        assert post.title == "AI Generated Title"
+        assert post.content == "This is some content for the quick post."
+        assert post.status == PostStatus.draft
+        assert len(post.post_tags) == 3
+        tag_names = [pt.tag.name for pt in post.post_tags]
+        assert set(tag_names) == {"ai", "python", "fastapi"}
+
+def test_create_quick_post_http_exception(db_session, test_user):
+    """Test quick post creation when AI service returns HTTP exception - should re-raise"""
+    with patch("app.services.post_service.get_title_and_tags_for_post") as mock_ai:
+        mock_ai.side_effect = HTTPException(status_code=500, detail="AI service error")
+        
+        with pytest.raises(HTTPException) as exc_info:
+            create_quick_post(db_session, test_user, "This is some content for the quick post.")
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "AI service error"

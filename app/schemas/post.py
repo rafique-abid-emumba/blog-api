@@ -25,6 +25,7 @@ class PostUpdate(BaseModel):
 class PostOut(PostBase):
     model_config = ConfigDict(from_attributes=True)
     
+    summary: Optional[str] = None
     id: int
     author_id: int
     created_at: datetime

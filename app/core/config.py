@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./test.db"
     REDIS_URL: str = "redis://localhost:6379/0"
     GROQ_API_KEY: str = "dev-groq-api-key"
-    LLM_MODEL: str = "deepseek-r1-distill-llama-70b"
+    LLM_MODEL: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
     QDRANT_API_KEY: str = ""  # Empty by default for local dev

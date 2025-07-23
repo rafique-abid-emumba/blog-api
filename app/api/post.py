@@ -5,11 +5,12 @@ from app.schemas.post import PostCreate, PostUpdate, PostOut, PostStatus, PostFi
 from app.services.post_service import (
     create_post, get_post, get_posts_for_admin_with_filters, 
     get_posts_for_author_with_filters, get_posts_for_reader_with_filters, 
-    update_post, delete_post
+    update_post, delete_post, create_quick_post
 )
 from app.services.user_service import get_user
 from app.db.deps import get_db
 from app.core.deps import get_current_user, require_role
+from app.utils import validate_content_input
 from datetime import datetime
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -26,10 +27,11 @@ def create_new_post(
 @router.get("/{post_id}", response_model=PostOut)
 def read_post(
     post_id: int,
+    include_summary: bool = Query(False, description="Include AI-generated summary of the post"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    post = get_post(db, post_id)
+    post = get_post(db, post_id, include_summary)
     if post.status == PostStatus.draft:
         if post.author_id != int(current_user["sub"]) and current_user["role"] != "Admin":
             raise HTTPException(status_code=403, detail="You do not have access to this draft post")
@@ -104,3 +106,16 @@ def delete_existing_post(
         raise HTTPException(status_code=403, detail="Not allowed to delete this post")
     delete_post(db, post)
     return
+
+@router.post("/quick-post", response_model=PostOut, dependencies=[Depends(require_role(["Admin", "Author"]))])
+def quick_create_post(
+    content: str = Query(..., min_length=1, max_length=5000, description="Post content"),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    is_valid, error_message = validate_content_input(content, min_length=10, max_length=5000)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_message)
+    
+    user = get_user(db, int(current_user["sub"]))
+    return create_quick_post(db, user, content)

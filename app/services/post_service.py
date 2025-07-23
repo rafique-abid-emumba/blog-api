@@ -9,6 +9,7 @@ from fastapi import HTTPException
 import logging
 from typing import List, Tuple
 from app.services.embedding_service import embed_and_store_post, delete_post_embeddings
+from app.services.genai_service import get_summary_for_post, get_title_and_tags_for_post
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +47,22 @@ def create_post(db: Session, author: User, post_in: PostCreate) -> Post:
         logger.error(f"Error creating post: {e}")
         raise HTTPException(status_code=500, detail="Failed to create post")
 
-def get_post(db: Session, post_id: int) -> Post:
+def get_post(db: Session, post_id: int, include_summary: bool = False) -> Post:
     try:
         post = db.query(Post).filter(Post.id == post_id).first()
         if not post:
             logger.warning("Attempted to get non-existent post")
             raise HTTPException(status_code=404, detail="Post not found")
+        
+        if include_summary:
+            try:
+                summary_result = get_summary_for_post(post.content)
+                post.summary = summary_result.get("summary", "")
+                logger.info(f"Summary generated for post {post_id}")
+            except Exception as e:
+                logger.warning(f"Failed to generate summary for post {post_id}: {e}")
+                post.summary = None
+        
         return post
     except HTTPException:
         raise
@@ -222,3 +233,24 @@ def delete_post(db: Session, post: Post):
         db.rollback()
         logger.error(f"Error deleting post: {e}")
         raise HTTPException(status_code=500, detail="Failed to delete post")
+
+def create_quick_post(db, user, content: str):
+    try:
+        ai_result = get_title_and_tags_for_post(content)
+        title = ai_result.get("title", "Untitled")
+        tags = ai_result.get("tags", [])
+        
+        logger.info(f"AI-generated title: '{title}' and tags: {tags} for quick post")
+        
+        post_in = PostCreate(
+            title=title,
+            content=content,
+            tags=tags,
+            status=PostStatus.draft
+        )
+        return create_post(db, user, post_in)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in quick post creation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create quick post")

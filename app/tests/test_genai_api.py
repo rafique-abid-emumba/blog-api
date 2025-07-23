@@ -57,5 +57,59 @@ def test_comment_analysis():
         assert response.status_code == 200
         data = response.json()
         assert data["sentiment"] == "positive"
-        assert data["abusive_flag"] is False
-        assert data["comment"] == "Great post!" 
+        assert data["is_abusive"] is False
+        assert data["comment"] == "Great post!"
+
+def test_title_tags_validation_short_content():
+    payload = {"post_content": "Hi"}
+    response = client.post("/genai/title-tags", json=payload)
+    assert response.status_code == 400
+    assert "Content must be at least 10 characters long" in response.json()["detail"]
+
+def test_title_tags_validation_numeric_content():
+    payload = {"post_content": "12345678901234567890"}
+    response = client.post("/genai/title-tags", json=payload)
+    assert response.status_code == 400
+    assert "Content cannot be only numbers" in response.json()["detail"]
+
+def test_title_tags_validation_repetitive_content():
+    payload = {"post_content": "aaaaaaaaaaaaaaaa"}
+    response = client.post("/genai/title-tags", json=payload)
+    assert response.status_code == 400
+    assert "Content appears to be repetitive" in response.json()["detail"]
+
+def test_summarize_validation_short_content():
+    payload = {"post_content": "Hello world"}
+    response = client.post("/genai/summarize", json=payload)
+    assert response.status_code == 400
+    assert "Content must be at least 20 characters long" in response.json()["detail"]
+
+def test_summarize_validation_numeric_content():
+    payload = {"post_content": "12345678901234567890"}
+    response = client.post("/genai/summarize", json=payload)
+    assert response.status_code == 400
+    assert "Content cannot be only numbers" in response.json()["detail"]
+
+def test_qa_validation_short_question():
+    payload = {"post_id": 1, "question": "Hi"}
+    response = client.post("/genai/qa", json=payload)
+    assert response.status_code == 400
+    assert "Content must be at least 5 characters long" in response.json()["detail"]
+
+def test_qa_validation_numeric_question():
+    payload = {"post_id": 1, "question": "12345"}
+    response = client.post("/genai/qa", json=payload)
+    assert response.status_code == 400
+    assert "Content cannot be only numbers" in response.json()["detail"]
+
+def test_comment_analysis_validation_short_comment():
+    payload = {"comment": "Hi"}
+    response = client.post("/genai/comment-analysis", json=payload)
+    assert response.status_code == 400
+    assert "Content must be at least 3 characters long" in response.json()["detail"]
+
+def test_comment_analysis_validation_numeric_comment():
+    payload = {"comment": "123"}
+    response = client.post("/genai/comment-analysis", json=payload)
+    assert response.status_code == 400
+    assert "Content cannot be only numbers" in response.json()["detail"]

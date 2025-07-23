@@ -20,39 +20,117 @@ def suggest_title_and_tags(post_content: str) -> Dict[str, Any]:
     Suggests a title and tags for a blog post using GenAI.
     """
     logger.info("Suggesting title and tags for post content")
-    prompt = (
-        "Given the following blog post content, suggest a concise, catchy title and 3-5 relevant tags. "
-        "Return as JSON: {\"title\": ..., \"tags\": [...]}.",
-        f"\n\nContent:\n{post_content}"
-    )
+    
+    fallback_response = {
+        "title": "Untitled Post",
+        "tags": ["general", "blog"]
+    }
+    
+    prompt = f"""# INSTRUCTION: Generate Title and Tags
+
+You are an AI assistant that generates catchy titles and relevant tags for blog posts.
+
+## TASK:
+Analyze the following blog post content and generate:
+1. A concise, catchy title (max 60 characters)
+2. 3-5 relevant tags that describe the main topics
+
+## OUTPUT FORMAT:
+You must respond with ONLY a valid JSON object in this exact format:
+{{
+    "title": "Your suggested title here",
+    "tags": ["tag1", "tag2", "tag3"]
+}}
+
+## IMPORTANT RULES:
+- If you cannot generate a proper title, use "Untitled Post"
+- If you cannot generate tags, use ["general", "blog"]
+- Never include explanations, markdown, or extra text
+- Only return the JSON object
+
+## BLOG POST CONTENT:
+{post_content}
+
+## RESPONSE:"""
+    
     try:
-        text = _llm_complete("".join(prompt))
+        text = _llm_complete(prompt)
         result = _extract_json_from_text(text)
+        
+        if not isinstance(result, dict) or 'title' not in result or 'tags' not in result:
+            logger.warning("Invalid response structure, using fallback")
+            return fallback_response
+        
+        if not result['title'] or len(result['title']) > 60:
+            result['title'] = fallback_response['title']
+        
+        if not result['tags'] or not isinstance(result['tags'], list):
+            result['tags'] = fallback_response['tags']
+        
         logger.info("Successfully suggested title and tags")
         return result
     except Exception as e:
         logger.error(f"Error suggesting title/tags: {e}")
-        raise
+        return fallback_response
 
 def summarize_post(post_content: str) -> Dict[str, Any]:
     """
     Summarizes a blog post using GenAI.
     """
     logger.info("Summarizing post content")
-    prompt = (
-        "Summarize the following blog post in 2-3 sentences for quick reading. "
-        "Also, provide references to the parts of the original text used for the summary. "
-        "Return as JSON: {\"summary\": ..., \"citations\": [...]}.",
-        f"\n\nContent:\n{post_content}"
-    )
+    
+    # Predefined fallback response
+    fallback_response = {
+        "summary": "This post discusses various topics and provides insights on the subject matter.",
+        "citations": ["Content analysis"]
+    }
+    
+    prompt = f"""# INSTRUCTION: Summarize Blog Post
+
+You are an AI assistant that creates concise summaries of blog posts.
+
+## TASK:
+Create a 2-3 sentence summary of the following blog post that captures the main points.
+Also identify key phrases or concepts from the original text that support your summary.
+
+## OUTPUT FORMAT:
+You must respond with ONLY a valid JSON object in this exact format:
+{{
+    "summary": "Your 2-3 sentence summary here",
+    "citations": ["key phrase 1", "key phrase 2"]
+}}
+
+## IMPORTANT RULES:
+- If you cannot generate a proper summary, use "This post discusses various topics and provides insights on the subject matter."
+- If you cannot identify citations, use ["Content analysis"]
+- Never include explanations, markdown, or extra text
+- Only return the JSON object
+- Summary should be 2-3 sentences maximum
+
+## BLOG POST CONTENT:
+{post_content}
+
+## RESPONSE:"""
+    
     try:
-        text = _llm_complete("".join(prompt))
+        text = _llm_complete(prompt)
         result = _extract_json_from_text(text)
+        
+        if not isinstance(result, dict) or 'summary' not in result or 'citations' not in result:
+            logger.warning("Invalid response structure, using fallback")
+            return fallback_response
+        
+        if not result['summary'] or len(result['summary']) > 500:
+            result['summary'] = fallback_response['summary']
+        
+        if not result['citations'] or not isinstance(result['citations'], list):
+            result['citations'] = fallback_response['citations']
+        
         logger.info("Successfully summarized post")
         return result
     except Exception as e:
         logger.error(f"Error summarizing post: {e}")
-        raise
+        return fallback_response
 
 def answer_question_about_post(post_id: int, question: str, top_k: int = 3) -> Dict[str, Any]:
     """
@@ -99,18 +177,54 @@ def answer_question_about_post(post_id: int, question: str, top_k: int = 3) -> D
         logger.info(f"Retrieved top {top_k} chunks for Q&A on post {post_id}")
 
         context = "\n---\n".join(top_chunks)
-        prompt = (
-            "Answer the following question using ONLY the provided context from the blog post. "
-            "Cite the relevant chunk(s) by their order (1, 2, 3, ...). "
-            "Return as JSON: {\"answer\": ..., \"citations\": [chunk_indices]}\n\n"
-            f"Context:\n{context}\n\nQuestion: {question}"
-        )
+        
+        fallback_response = {
+            "answer": "I cannot find specific information to answer this question based on the available content.",
+            "citations": []
+        }
+        
+        prompt = f"""# INSTRUCTION: Answer Question About Blog Post
+
+You are an AI assistant that answers questions about blog posts using only the provided context.
+
+## TASK:
+Answer the given question using ONLY the information from the provided context.
+Cite the specific chunks (by number) that support your answer.
+
+## OUTPUT FORMAT:
+You must respond with ONLY a valid JSON object in this exact format:
+{{
+    "answer": "Your answer based on the context",
+    "citations": [1, 2, 3]
+}}
+
+## IMPORTANT RULES:
+- Only use information from the provided context
+- If the context doesn't contain relevant information, use "I cannot find specific information to answer this question based on the available content."
+- If you cannot identify citations, use []
+- Never include explanations, markdown, or extra text
+- Only return the JSON object
+- Citations should be chunk numbers (1, 2, 3, etc.)
+
+## CONTEXT (Chunks from blog post):
+{context}
+
+## QUESTION:
+{question}
+
+## RESPONSE:"""
+        
         text = _llm_complete(prompt)
         result = _extract_json_from_text(text)
-        # Map chunk indices to actual chunk text for citations
-        result["citations"] = [
-            top_chunks[i-1] for i in result.get("citations", []) if 1 <= i <= len(top_chunks)
-        ]
+        
+        if not isinstance(result, dict) or 'answer' not in result or 'citations' not in result:
+            logger.warning("Invalid response structure, using fallback")
+            result = fallback_response
+        else:
+            # Map chunk indices to actual chunk text for citations
+            result["citations"] = [
+                top_chunks[i-1] for i in result.get("citations", []) if 1 <= i <= len(top_chunks)
+            ]
         redis_client.set(cache_key, json.dumps(result), ex=3600)
         logger.info(f"Cached Q&A result for post {post_id}, question='{question}'")
         return result
@@ -124,22 +238,60 @@ def analyze_comment_sentiment(comment: str) -> dict:
     Returns a dictionary with 'sentiment' and 'is_abusive' keys.
     """
     logger.info(f"Analyzing comment for sentiment and abuse: '{comment[:50]}...'")
-    prompt = (
-        "Analyze the following comment. "
-        "Return as JSON: {\"sentiment\": \"positive|negative|neutral\", \"is_abusive\": true|false}.\n\n"
-        f"Comment: {comment}"
-    )
+    
+    fallback_response = {
+        "sentiment": "neutral",
+        "is_abusive": False
+    }
+    
+    prompt = f"""# INSTRUCTION: Analyze Comment Sentiment and Abuse
+
+You are an AI assistant that analyzes comments for sentiment and potential abuse.
+
+## TASK:
+Analyze the following comment and determine:
+1. Sentiment: positive, negative, or neutral
+2. Whether the comment contains abusive content
+
+## OUTPUT FORMAT:
+You must respond with ONLY a valid JSON object in this exact format:
+{{
+    "sentiment": "positive|negative|neutral",
+    "is_abusive": true|false
+}}
+
+## IMPORTANT RULES:
+- If you cannot determine sentiment, use "neutral"
+- If you cannot determine abuse, use false
+- Never include explanations, markdown, or extra text
+- Only return the JSON object
+- Sentiment must be exactly: "positive", "negative", or "neutral"
+- is_abusive must be exactly: true or false
+
+## COMMENT TO ANALYZE:
+{comment}
+
+## RESPONSE:"""
+    
     try:
         text = _llm_complete(prompt)
         result = _extract_json_from_text(text)
+        
         if not isinstance(result, dict) or 'sentiment' not in result or 'is_abusive' not in result:
-            logger.error("Invalid comment analysis format from LLM")
-            raise ValueError("Invalid comment analysis format")
+            logger.warning("Invalid response structure, using fallback")
+            return fallback_response
+        
+        if result['sentiment'] not in ['positive', 'negative', 'neutral']:
+            result['sentiment'] = fallback_response['sentiment']
+        
+        if not isinstance(result['is_abusive'], bool):
+            result['is_abusive'] = fallback_response['is_abusive']
+        
         logger.info(f"Comment analysis result: sentiment='{result['sentiment']}', abusive={result['is_abusive']}")
         return result
     except Exception as e:
         logger.error(f"Error analyzing comment: {e}")
-        raise
+        return fallback_response
 
 def suggest_trending_tags(posts_with_comments: List[dict], top_k: int = 10) -> List[str]:
     """
@@ -147,12 +299,31 @@ def suggest_trending_tags(posts_with_comments: List[dict], top_k: int = 10) -> L
     Uses GenAI to identify semantic trends and popular topics.
     """
     logger.info(f"Analyzing {len(posts_with_comments)} posts for trending tags")
-    prompt = (
-        "Based on the following recent blog posts and their top-level comments, "
-        f"identify the top {top_k} trending tags that represent current popular topics, "
-        "themes, or discussions. Consider both explicit tags and implicit topics.\n\n"
-        "Recent content:\n"
-    )
+    
+    fallback_response = ["general", "blog", "discussion"]
+    
+    prompt = f"""# INSTRUCTION: Identify Trending Tags
+
+You are an AI assistant that identifies trending topics from blog posts and comments.
+
+## TASK:
+Analyze the following recent blog posts and their comments to identify the top {top_k} trending tags.
+Consider both explicit tags mentioned and implicit topics discussed.
+
+## OUTPUT FORMAT:
+You must respond with ONLY a valid JSON array of strings in this exact format:
+["tag1", "tag2", "tag3"]
+
+## IMPORTANT RULES:
+- If you cannot identify trending tags, use ["general", "blog", "discussion"]
+- Never include explanations, markdown, or extra text
+- Only return the JSON array
+- Maximum {top_k} tags
+- Tags should be lowercase, single words or short phrases
+
+## RECENT CONTENT:
+"""
+    
     for i, post_data in enumerate(posts_with_comments, 1):
         prompt += f"{i}. Post Title: {post_data['title']}\n"
         prompt += f"   Content: {post_data['content'][:500]}...\n"
@@ -162,18 +333,21 @@ def suggest_trending_tags(posts_with_comments: List[dict], top_k: int = 10) -> L
             for j, comment in enumerate(post_data['comments'][:5], 1):
                 prompt += f"     {j}. {comment['content'][:200]}...\n"
         prompt += "\n"
-    prompt += (
-        f"Based on this content, what are the top {top_k} trending tags? "
-        "Return ONLY a JSON array of strings, e.g.: [\"tag1\", \"tag2\", \"tag3\"]"
-    )
+    
+    prompt += f"""## RESPONSE:"""
+    
     try:
         text = _llm_complete(prompt)
         result = _extract_json_from_text(text, expect_array=True)
+        
         if not isinstance(result, list) or not all(isinstance(tag, str) for tag in result):
-            logger.error("Invalid trending tags format from LLM")
-            raise ValueError("Invalid trending tags format")
+            logger.warning("Invalid response structure, using fallback")
+            return fallback_response[:top_k]
+        
+        result = result[:top_k]
+        
         logger.info(f"Successfully identified {len(result)} trending tags: {result}")
-        return result[:top_k]
+        return result
     except Exception as e:
         logger.error(f"Error suggesting trending tags: {e}")
-        raise
+        return fallback_response[:top_k]

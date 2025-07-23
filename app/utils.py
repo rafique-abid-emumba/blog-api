@@ -25,14 +25,33 @@ def get_comment_depth(comment):
 
 def _extract_json_from_text(text: str, expect_array: bool = False) -> any:
     """
-    Extracts the first JSON object or array from a string.
+    Extracts JSON object or array from a string with improved error handling.
     """
+    text = text.strip()
+    
+    lines = text.split('\n')
+    for line in reversed(lines):
+        line = line.strip()
+        if line:
+            try:
+                if expect_array and line.startswith('[') and line.endswith(']'):
+                    return json.loads(line)
+                elif not expect_array and line.startswith('{') and line.endswith('}'):
+                    return json.loads(line)
+            except json.JSONDecodeError:
+                continue
+    
     pattern = r"\[.*?\]" if expect_array else r"\{.*?\}"
     match = re.search(pattern, text, re.DOTALL)
-    if not match:
-        logging.error("No valid JSON %s found in LLM response", "array" if expect_array else "object")
-        raise ValueError("No valid JSON found in LLM response")
-    return json.loads(match.group(0))
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    
+    logging.error("No valid JSON %s found in LLM response: %s", 
+                 "array" if expect_array else "object", text[:200])
+    raise ValueError("No valid JSON found in LLM response")
 
 from app.genai.llm import get_llm
 
@@ -42,4 +61,31 @@ def _llm_complete(prompt: str) -> str:
     """
     llm = get_llm()
     response = llm.complete(prompt=prompt)
-    return response.text.strip() 
+    return response.text.strip()
+
+def validate_content_input(content: str, min_length: int = 10, max_length: int = 5000) -> tuple[bool, str]:
+    """
+    Validates content input for GenAI endpoints.
+    Returns (is_valid, error_message).
+    """
+    if not content or not content.strip():
+        return False, "Content cannot be empty"
+    
+    content = content.strip()
+    
+    if len(content) < min_length:
+        return False, f"Content must be at least {min_length} characters long"
+    
+    if len(content) > max_length:
+        return False, f"Content cannot exceed {max_length} characters"
+    
+    if content.isdigit():
+        return False, "Content cannot be only numbers"
+    
+    if not any(c.isalpha() for c in content):
+        return False, "Content must contain at least some text"
+    
+    if len(set(content)) <= 2 and len(content) > 5:
+        return False, "Content appears to be repetitive or meaningless"
+    
+    return True, "" 
