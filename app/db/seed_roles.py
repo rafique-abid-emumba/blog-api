@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.role import Role
-from app.constants import default_roles
+from app.utils.constants import default_roles
 
 def seed_roles():
     db: Session = SessionLocal()

@@ -5,9 +5,8 @@ from app.models.role import Role
 from app.schemas.user import UserCreate, UserUpdate
 from fastapi import HTTPException
 import logging
-import re
-from app.constants import DEFAULT_ROLE, PASSWORD_REGEX, PASSWORD_REQUIREMENTS_MSG
-from app.utils import verify_password, get_password_hash, is_strong_password
+from app.utils.constants import DEFAULT_ROLE, PASSWORD_REQUIREMENTS_MSG
+from app.utils.utilities import verify_password, get_password_hash, is_strong_password
 
 logger = logging.getLogger(__name__)
 
@@ -224,19 +223,16 @@ async def update_user_async(db, user: User, user_update: UserUpdate) -> User:
     try:
         update_data = user_update.model_dump(exclude_unset=True)
         
-        # Check for duplicate username if username is being updated
         if user_update.username and user_update.username != user.username:
             if await is_duplicate_username_async(db, user_update.username):
                 logger.warning(f"Username already exists: {user_update.username}")
                 raise HTTPException(status_code=400, detail="Username already taken")
         
-        # Check for duplicate email if email is being updated
         if user_update.email and user_update.email != user.email:
             if await is_duplicate_email_async(db, user_update.email):
                 logger.warning(f"Email already exists: {user_update.email}")
                 raise HTTPException(status_code=400, detail="Email already taken")
         
-        # Hash password if it's being updated
         if user_update.password:
             if not is_strong_password(user_update.password):
                 logger.warning("Password does not meet strength requirements")

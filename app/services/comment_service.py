@@ -6,8 +6,8 @@ from app.schemas.comment import CommentCreate, CommentUpdate
 from fastapi import HTTPException, status
 from typing import List, Optional
 import logging
-from app.constants import MAX_COMMENTS_PER_USER_PER_POST, MAX_COMMENTS_PER_POST, MAX_COMMENT_DEPTH
-from app.utils import get_comment_depth
+from app.utils.constants import MAX_COMMENTS_PER_USER_PER_POST, MAX_COMMENTS_PER_POST, MAX_COMMENT_DEPTH
+from app.utils.utilities import get_comment_depth
 from app.services.genai_service import analyze_comment
 
 logger = logging.getLogger(__name__)

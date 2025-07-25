@@ -26,7 +26,7 @@ class TestUserService:
         assert user.email == "new@example.com"
         assert user.role_id == 3
     
-    def test_create_user_duplicate_username(self, db_session):
+    def test_create_user_duplicate_username(self, db_session, add_roles_to_db):
         user_data1 = UserCreate(
             username="testuser",
             email="test1@example.com",
@@ -42,9 +42,9 @@ class TestUserService:
         with pytest.raises(HTTPException) as exc_info:
             create_user(db_session, user_data2)
         assert exc_info.value.status_code == 400
-        assert "Username already exists" in exc_info.value.detail
+        assert "Username already registered" in exc_info.value.detail
     
-    def test_create_user_duplicate_email(self, db_session):
+    def test_create_user_duplicate_email(self, db_session, add_roles_to_db):
         user_data1 = UserCreate(
             username="user1",
             email="test@example.com",
@@ -60,7 +60,7 @@ class TestUserService:
         with pytest.raises(HTTPException) as exc_info:
             create_user(db_session, user_data2)
         assert exc_info.value.status_code == 400
-        assert "Email already exists" in exc_info.value.detail
+        assert "Email already registered" in exc_info.value.detail
     
     def test_create_user_weak_password(self, db_session):
         user_data = UserCreate(

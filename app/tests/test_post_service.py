@@ -4,9 +4,10 @@ from datetime import datetime, timedelta, timezone
 from app.models.post import PostStatus
 from app.schemas.post import PostCreate, PostUpdate, PostFilters
 from app.services.post_service import (
-    create_post, get_post, get_posts, update_post, delete_post,
+    create_post, get_post, update_post, delete_post,
     get_posts_with_filters, create_quick_post
 )
+from app.schemas.post import PostFilters
 from unittest.mock import patch
 
 @pytest.fixture
@@ -96,7 +97,8 @@ class TestPostService:
         create_post(db_session, test_user, post_data1)
         create_post(db_session, test_user, post_data2)
         
-        posts = get_posts(db_session, skip=0, limit=10)
+        filters = PostFilters()
+        posts, total = get_posts_with_filters(db_session, filters, skip=0, limit=10)
         assert len(posts) == 2
     
     def test_get_posts_pagination(self, db_session, test_user):
@@ -108,10 +110,11 @@ class TestPostService:
             )
             create_post(db_session, test_user, post_data)
         
-        posts = get_posts(db_session, skip=0, limit=3)
+        filters = PostFilters()
+        posts, total = get_posts_with_filters(db_session, filters, skip=0, limit=3)
         assert len(posts) == 3
         
-        posts = get_posts(db_session, skip=3, limit=3)
+        posts, total = get_posts_with_filters(db_session, filters, skip=3, limit=3)
         assert len(posts) == 2
     
     def test_update_post_success(self, db_session, test_user):
@@ -271,4 +274,4 @@ def test_create_quick_post_http_exception(db_session, test_user):
         with pytest.raises(HTTPException) as exc_info:
             create_quick_post(db_session, test_user, "This is some content for the quick post.")
         assert exc_info.value.status_code == 500
-        assert exc_info.value.detail == "AI service error"
+        assert exc_info.value.detail == "Failed to create quick post"

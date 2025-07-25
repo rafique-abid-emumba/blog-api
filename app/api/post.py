@@ -10,7 +10,7 @@ from app.services.post_service import (
 from app.services.user_service import get_user_async
 from app.db.deps import get_db, get_async_db
 from app.core.deps import get_current_user, require_role
-from app.utils import validate_content_input
+from app.utils.utilities import validate_content_input
 from datetime import datetime
 
 router = APIRouter(prefix="/posts", tags=["posts"])

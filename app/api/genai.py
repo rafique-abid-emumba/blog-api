@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from app.services.genai_service import get_title_and_tags_for_post, get_summary_for_post, answer_post_question, answer_question_from_all_posts, analyze_comment, get_trending_tags_ai
 from app.schemas.genai import TitleTagRequest, TitleTagResponse, SummarizeRequest, SummarizeResponse, QARequest, QAResponse, GlobalQARequest, GlobalQAResponse, CommentAnalysisRequest, CommentAnalysisResponse, TrendingTagsResponse
 from app.db.deps import get_db
-from app.utils import validate_content_input
+from app.utils.utilities import validate_content_input
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/genai", tags=["GenAI"])

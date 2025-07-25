@@ -383,13 +383,15 @@ def update_post(db: Session, post: Post, post_update: PostUpdate) -> Post:
     try:
         update_data = post_update.model_dump(exclude_unset=True)
         
+        tags_to_update = update_data.pop('tags', None)
+        
         for field, value in update_data.items():
             setattr(post, field, value)
         
-        if post_update.tags is not None:
+        if tags_to_update is not None:
             db.query(PostTag).filter(PostTag.post_id == post.id).delete()
             db.flush()
-            set_post_tags(db, post, post_update.tags)
+            set_post_tags(db, post, tags_to_update)
         
         db.commit()
         db.refresh(post)
@@ -414,13 +416,15 @@ async def update_post_async(db, post: Post, post_update: PostUpdate) -> Post:
     try:
         update_data = post_update.model_dump(exclude_unset=True)
         
+        tags_to_update = update_data.pop('tags', None)
+        
         for field, value in update_data.items():
             setattr(post, field, value)
         
-        if post_update.tags is not None:
+        if tags_to_update is not None:
             await db.execute(select(PostTag).filter(PostTag.post_id == post.id))
             await db.commit()
-            await set_post_tags_async(db, post, post_update.tags)
+            await set_post_tags_async(db, post, tags_to_update)
         
         await db.commit()
         result = await db.execute(
@@ -515,6 +519,9 @@ async def create_quick_post_async(db, user, content: str):
         await set_post_tags_async(db, post, tags)
         
         await db.commit()
+        
+        embed_and_store_post(post.id, post.content)
+        
         result = await db.execute(
             select(Post)
             .options(

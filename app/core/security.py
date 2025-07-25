@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from typing import Optional
 from app.core.config import settings
-from app.constants import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, ENCODING_ALGORITHM
+from app.utils.constants import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS, ENCODING_ALGORITHM
 
 SECRET_KEY = settings.SECRET_KEY
 REFRESH_SECRET_KEY = settings.REFRESH_SECRET_KEY

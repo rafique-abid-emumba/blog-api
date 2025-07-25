@@ -4,6 +4,9 @@ from app.api.user import router as user_router
 from app.api.post import router as post_router
 from app.api.comment import router as comment_router
 from app.api.genai import router as genai_router
+from app.api.health import router as health_router
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.security import SecurityHeadersMiddleware
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 from app.db.session import engine
@@ -27,6 +30,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+
+app.include_router(health_router)
 app.include_router(user_router)
 app.include_router(post_router)
 app.include_router(comment_router)

@@ -5,7 +5,7 @@ from app.core.redis import redis_client
 from llama_index.core.schema import TextNode
 from llama_index.core import VectorStoreIndex
 from llama_index.core.settings import Settings
-from app.constants import CHUNK_SIZE
+from app.utils.constants import CHUNK_SIZE
 import json
 import logging
 
@@ -46,4 +46,4 @@ def delete_post_embeddings(post_id: int):
         logger.info(f"Successfully deleted embeddings and cache for post {post_id}")
     except Exception as e:
         logger.error(f"Failed to delete embeddings/cache for post {post_id}: {e}")
-        raise 
+        raise

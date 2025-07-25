@@ -1,6 +1,6 @@
 import re
 from passlib.context import CryptContext
-from app.constants import PASSWORD_REGEX
+from app.utils.constants import PASSWORD_REGEX
 import logging
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
