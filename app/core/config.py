@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     SECRET_KEY: str = "dev-secret-key"
     REFRESH_SECRET_KEY: str = "dev-refresh-secret"
-    DATABASE_URL: str = "sqlite:///./test.db"
+    DATABASE_URL: str = "postgresql://user:password@localhost:5432/blog_api"
     REDIS_URL: str = "redis://localhost:6379/0"
     GROQ_API_KEY: str = "dev-groq-api-key"
     LLM_MODEL: str = "meta-llama/llama-4-maverick-17b-128e-instruct"

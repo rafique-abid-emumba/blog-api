@@ -1,5 +1,6 @@
 from app.genai.embeddings import get_embedding_model
 from app.genai.vectorstore import get_vector_store
+from app.services.vectorstore_service import delete_points_by_post_id
 from app.core.redis import redis_client
 from llama_index.core.schema import TextNode
 from llama_index.core import VectorStoreIndex
@@ -34,8 +35,13 @@ def embed_and_store_post(post_id: int, post_content: str):
 def delete_post_embeddings(post_id: int):
     logger.info(f"Deleting embeddings and cache for post {post_id}")
     try:
-        vector_store = get_vector_store()
-        vector_store.delete(str(post_id))
+        deleted_count = delete_points_by_post_id(post_id)
+        
+        if deleted_count > 0:
+            logger.info(f"Successfully deleted {deleted_count} points for post {post_id}")
+        else:
+            logger.warning(f"No points found for post {post_id}")
+        
         redis_client.delete(f"post:{post_id}:chunks")
         logger.info(f"Successfully deleted embeddings and cache for post {post_id}")
     except Exception as e:

@@ -79,12 +79,16 @@ class TestUserService:
         assert user.username == "testuser"
     
     def test_authenticate_user_wrong_password(self, db_session, test_user):
-        user = authenticate_user(db_session, "testuser", "wrongpassword")
-        assert user is None
+        with pytest.raises(HTTPException) as exc_info:
+            authenticate_user(db_session, "testuser", "wrongpassword")
+        assert exc_info.value.status_code == 401
+        assert "Invalid credentials" in exc_info.value.detail
     
     def test_authenticate_user_nonexistent_user(self, db_session):
-        user = authenticate_user(db_session, "nonexistent", "password")
-        assert user is None
+        with pytest.raises(HTTPException) as exc_info:
+            authenticate_user(db_session, "nonexistent", "password")
+        assert exc_info.value.status_code == 404
+        assert "User not found" in exc_info.value.detail
     
     def test_update_user_success(self, db_session, test_user):
         update_data = UserUpdate(username="updateduser")
@@ -95,7 +99,8 @@ class TestUserService:
         update_data = UserUpdate(username="updateduser")
         with pytest.raises(HTTPException) as exc_info:
             update_user(db_session, None, update_data)
-        assert exc_info.value.status_code == 404
+        assert exc_info.value.status_code == 500
+        assert "Failed to update user" in exc_info.value.detail
     
     def test_is_strong_password_valid(self):
         assert is_strong_password("StrongPass123!") == True

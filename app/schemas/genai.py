@@ -1,5 +1,5 @@
 from pydantic import BaseModel, constr
-from typing import List
+from typing import List, Optional
 
 class TitleTagRequest(BaseModel):
     post_content: constr(min_length=1, max_length=5000)
@@ -21,7 +21,18 @@ class QARequest(BaseModel):
 
 class QAResponse(BaseModel):
     answer: str
-    citations: List[str] 
+    citations: List[str]
+
+class GlobalQARequest(BaseModel):
+    question: constr(min_length=1, max_length=500)
+
+class CitationItem(BaseModel):
+    text: str
+    post_id: int
+
+class GlobalQAResponse(BaseModel):
+    answer: str
+    citations: List[CitationItem]
 
 class CommentAnalysisRequest(BaseModel):
     comment: constr(min_length=1, max_length=500)

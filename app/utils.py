@@ -2,7 +2,6 @@ import re
 from passlib.context import CryptContext
 from app.constants import PASSWORD_REGEX
 import logging
-import json
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -23,51 +22,7 @@ def get_comment_depth(comment):
         comment = comment.parent
     return depth
 
-def _extract_json_from_text(text: str, expect_array: bool = False) -> any:
-    """
-    Extracts JSON object or array from a string with improved error handling.
-    """
-    text = text.strip()
-    
-    lines = text.split('\n')
-    for line in reversed(lines):
-        line = line.strip()
-        if line:
-            try:
-                if expect_array and line.startswith('[') and line.endswith(']'):
-                    return json.loads(line)
-                elif not expect_array and line.startswith('{') and line.endswith('}'):
-                    return json.loads(line)
-            except json.JSONDecodeError:
-                continue
-    
-    pattern = r"\[.*?\]" if expect_array else r"\{.*?\}"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group(0))
-        except json.JSONDecodeError:
-            pass
-    
-    logging.error("No valid JSON %s found in LLM response: %s", 
-                 "array" if expect_array else "object", text[:200])
-    raise ValueError("No valid JSON found in LLM response")
-
-from app.genai.llm import get_llm
-
-def _llm_complete(prompt: str) -> str:
-    """
-    Calls the LLM with the given prompt and returns the response text.
-    """
-    llm = get_llm()
-    response = llm.complete(prompt=prompt)
-    return response.text.strip()
-
 def validate_content_input(content: str, min_length: int = 10, max_length: int = 5000) -> tuple[bool, str]:
-    """
-    Validates content input for GenAI endpoints.
-    Returns (is_valid, error_message).
-    """
     if not content or not content.strip():
         return False, "Content cannot be empty"
     

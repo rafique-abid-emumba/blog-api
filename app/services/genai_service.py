@@ -1,6 +1,6 @@
 import logging
 from fastapi import HTTPException
-from app.genai.pipelines import suggest_title_and_tags, summarize_post, answer_question_about_post, analyze_comment_sentiment, suggest_trending_tags
+from app.genai.pipelines import suggest_title_and_tags, summarize_post, answer_question_about_post, analyze_comment_sentiment, suggest_trending_tags, answer_question_global
 from app.schemas.genai import CommentAnalysisResponse
 from app.models.post import Post
 from app.models.comment import Comment
@@ -57,6 +57,22 @@ def analyze_comment(comment: str) -> CommentAnalysisResponse:
     except Exception as e:
         logger.error(f"Error in GenAI comment analysis: {e}")
         raise HTTPException(status_code=500, detail="Failed to analyze comment")
+
+def answer_question_from_all_posts(question: str, top_k: int = 5) -> dict:
+    """
+    Answer a question using RAG across all content in the vector database.
+    """
+    try:
+        result = answer_question_global(question, top_k)
+        logger.info("Global Q&A succeeded")
+        return result
+    except Exception as e:
+        logger.error(f"Error in global Q&A: {e}")
+        return {
+            "answer": "I cannot find specific information to answer this question based on the available content.",
+            "citations": [],
+            "relevant_posts": []
+        }
 
 def get_trending_tags_ai(db, top_k: int = 10, days: int = 7) -> dict:
     """

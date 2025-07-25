@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
-from app.services.genai_service import get_title_and_tags_for_post, get_summary_for_post, answer_post_question, analyze_comment, get_trending_tags_ai
-from app.schemas.genai import TitleTagRequest, TitleTagResponse, SummarizeRequest, SummarizeResponse, QARequest, QAResponse, CommentAnalysisRequest, CommentAnalysisResponse, TrendingTagsResponse
+from app.services.genai_service import get_title_and_tags_for_post, get_summary_for_post, answer_post_question, answer_question_from_all_posts, analyze_comment, get_trending_tags_ai
+from app.schemas.genai import TitleTagRequest, TitleTagResponse, SummarizeRequest, SummarizeResponse, QARequest, QAResponse, GlobalQARequest, GlobalQAResponse, CommentAnalysisRequest, CommentAnalysisResponse, TrendingTagsResponse
 from app.db.deps import get_db
 from app.utils import validate_content_input
 from sqlalchemy.orm import Session
@@ -27,12 +27,21 @@ def summarize_post_endpoint(request: SummarizeRequest):
 
 @router.post("/qa", response_model=QAResponse)
 def qa_post_endpoint(request: QARequest):
-    is_valid, error_message = validate_content_input(request.question, min_length=5, max_length=500)
+    is_valid, error_message = validate_content_input(request.question, min_length=10, max_length=500)
     if not is_valid:
         raise HTTPException(status_code=400, detail=error_message)
     
     result = answer_post_question(request.post_id, request.question)
     return QAResponse(**result)
+
+@router.post("/qa-global", response_model=GlobalQAResponse)
+def qa_global_endpoint(request: GlobalQARequest):
+    is_valid, error_message = validate_content_input(request.question, min_length=10, max_length=500)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_message)
+    
+    result = answer_question_from_all_posts(request.question)
+    return GlobalQAResponse(**result)
 
 @router.post("/comment-analysis", response_model=CommentAnalysisResponse)
 def analyze_comment_endpoint(request: CommentAnalysisRequest):
