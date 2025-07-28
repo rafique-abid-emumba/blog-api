@@ -157,7 +157,7 @@ def validate_response_structure(result: Any, expected_keys: List[str], fallback:
     
     return result
 
-def safe_llm_call(prompt: str, expect_array: bool = False, fallback: Any = None) -> Any:
+def execute_llm(prompt: str, expect_array: bool = False, fallback: Any = None) -> Any:
     try:
         text = llm_complete(prompt)
         result = extract_json_from_text(text, expect_array=expect_array)

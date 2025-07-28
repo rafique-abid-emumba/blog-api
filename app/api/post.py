@@ -109,9 +109,9 @@ async def delete_existing_post(
     await delete_post_async(db, post)
     return
 
-@router.post("/quick-post", response_model=PostOut, dependencies=[Depends(require_role(["Admin", "Author"]))])
-async def quick_create_post(
-    content: str = Query(..., min_length=1, max_length=5000, description="Post content"),
+@router.post("/ai-quick-post", response_model=PostOut, dependencies=[Depends(require_role(["Admin", "Author"]))])
+async def ai_quick_create_post(
+    content: str = Query(..., min_length=1, max_length=5000, description="Post content - AI will generate title and tags"),
     db: Session = Depends(get_async_db),
     current_user=Depends(get_current_user)
 ):

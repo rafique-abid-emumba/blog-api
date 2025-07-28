@@ -5,12 +5,13 @@ from app.models.post import Post, PostStatus
 from app.models.user import User
 from app.models.tag import Tag
 from app.models.posttag import PostTag
-from app.schemas.post import PostCreate, PostUpdate, PostFilters
+from app.schemas.post import PostCreate, PostUpdate, PostFilters, PaginatedResponse
 from fastapi import HTTPException
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from app.services.embedding_service import embed_and_store_post, delete_post_embeddings
 from app.services.genai_service import get_summary_for_post, get_title_and_tags_for_post
+from app.services.cache_service import PostCacheService
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,9 @@ async def create_post_async(db, author: User, post_in: PostCreate) -> Post:
             logger.info(f"Embeddings stored for published post {post.id}")
         else:
             logger.info(f"Skipping embedding storage for draft post {post.id}")
+        
+        await PostCacheService.invalidate_user_posts(author.id)
+        await PostCacheService.invalidate_all_posts()
         
         return post
     except Exception as e:
@@ -242,13 +246,32 @@ async def get_posts_with_filters_async(
     db, 
     filters: PostFilters, 
     skip: int = 0, 
-    limit: int = 10
+    limit: int = 10,
+    user_role: str = "Reader",
+    author_id: Optional[int] = None
 ) -> Tuple[List[Post], int]:
+    page = (skip // limit) + 1
+    
+    cached_response = await PostCacheService.get_cached_posts(
+        user_role, filters, page, limit, author_id
+    )
+    if cached_response:
+        return cached_response.items, cached_response.total
+    
     try:
         query = select(Post).options(
             selectinload(Post.author),
             selectinload(Post.post_tags).selectinload(PostTag.tag)
         )
+        
+        if user_role == "Author" and author_id:
+            query = query.filter(
+                or_(
+                    Post.status == PostStatus.published,
+                    and_(Post.status == PostStatus.draft, Post.author_id == author_id)
+                )
+            )
+        
         query = await apply_filters_async(query, filters, db)
         
         if filters.search:
@@ -261,6 +284,16 @@ async def get_posts_with_filters_async(
             query.order_by(Post.created_at.desc()).offset(skip).limit(limit)
         )
         posts = posts_result.scalars().all()
+        
+        response = PaginatedResponse(
+            items=posts,
+            total=total,
+            page=page,
+            size=limit,
+            pages=(total + limit - 1) // limit
+        )
+        
+        await PostCacheService.cache_posts(response, user_role, filters, page, limit, author_id)
         
         logger.info(f"Fetched {len(posts)} posts with filters (total: {total})")
         return posts, total
@@ -282,7 +315,7 @@ async def get_posts_for_admin_with_filters_async(
     skip: int = 0, 
     limit: int = 10
 ) -> Tuple[List[Post], int]:
-    return await get_posts_with_filters_async(db, filters, skip, limit)
+    return await get_posts_with_filters_async(db, filters, skip, limit, "Admin")
 
 def get_posts_for_author_with_filters(
     db: Session, 
@@ -319,34 +352,7 @@ async def get_posts_for_author_with_filters_async(
     skip: int = 0, 
     limit: int = 10
 ) -> Tuple[List[Post], int]:
-    try:
-        query = select(Post).options(
-            selectinload(Post.author),
-            selectinload(Post.post_tags).selectinload(PostTag.tag)
-        ).filter(
-            or_(
-                Post.status == PostStatus.published,
-                and_(Post.status == PostStatus.draft, Post.author_id == author_id)
-            )
-        )
-        query = await apply_filters_async(query, filters, db)
-        
-        if filters.search:
-            query = await apply_search_async(query, filters.search)
-        
-        count_result = await db.execute(query)
-        total = len(count_result.scalars().all())
-        
-        posts_result = await db.execute(
-            query.order_by(Post.created_at.desc()).offset(skip).limit(limit)
-        )
-        posts = posts_result.scalars().all()
-        
-        logger.info(f"Author {author_id} fetched {len(posts)} posts with filters (total: {total})")
-        return posts, total
-    except Exception as e:
-        logger.error(f"Error fetching posts for author {author_id}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch posts")
+    return await get_posts_with_filters_async(db, filters, skip, limit, "Author", author_id)
 
 def get_posts_for_reader_with_filters(
     db: Session, 
@@ -371,7 +377,7 @@ async def get_posts_for_reader_with_filters_async(
 ) -> Tuple[List[Post], int]:
     try:
         filters.status = PostStatus.published
-        posts, total = await get_posts_with_filters_async(db, filters, skip, limit)
+        posts, total = await get_posts_with_filters_async(db, filters, skip, limit, "Reader")
         logger.info(f"Reader fetched {len(posts)} published posts with filters (total: {total})")
         return posts, total
     except Exception as e:
@@ -447,6 +453,9 @@ async def update_post_async(db, post: Post, post_update: PostUpdate) -> Post:
             else:
                 logger.info(f"Skipping embedding storage for draft post {post.id}")
         
+        await PostCacheService.invalidate_user_posts(post.author_id)
+        await PostCacheService.invalidate_all_posts()
+        
         return post
     except Exception as e:
         await db.rollback()
@@ -472,6 +481,9 @@ async def delete_post_async(db, post: Post):
         await db.delete(post)
         await db.commit()
         logger.info(f"Post deleted successfully: {post.title} (ID: {post.id})")
+        
+        await PostCacheService.invalidate_user_posts(post.author_id)
+        await PostCacheService.invalidate_all_posts()
     except Exception as e:
         await db.rollback()
         logger.error(f"Error deleting post: {e}")
@@ -520,8 +532,6 @@ async def create_quick_post_async(db, user, content: str):
         
         await db.commit()
         
-        embed_and_store_post(post.id, post.content)
-        
         result = await db.execute(
             select(Post)
             .options(
@@ -532,6 +542,10 @@ async def create_quick_post_async(db, user, content: str):
         )
         post = result.scalar_one()
         logger.info(f"Quick post created: {post.title} (ID: {post.id})")
+        
+        await PostCacheService.invalidate_user_posts(user.id)
+        await PostCacheService.invalidate_all_posts()
+        
         return post
     except Exception as e:
         await db.rollback()

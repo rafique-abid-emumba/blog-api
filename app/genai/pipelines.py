@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List
 from app.genai.utils import (
     validate_response_structure,
-    safe_llm_call,
+    execute_llm,
     create_text_nodes,
     retrieve_relevant_chunks,
     cache_qa_result,
@@ -35,7 +35,7 @@ def suggest_title_and_tags(post_content: str) -> Dict[str, Any]:
     }
     
     prompt = get_title_tags_prompt(post_content)
-    result = safe_llm_call(prompt, fallback=fallback_response)
+    result = execute_llm(prompt, fallback=fallback_response)
     
     if result == fallback_response:
         return fallback_response
@@ -56,12 +56,12 @@ def summarize_post(post_content: str) -> Dict[str, Any]:
     logger.info("Summarizing post content")
     
     fallback_response = {
-        "summary": "This post discusses various topics and provides insights on the subject matter.",
-        "citations": ["Content analysis"]
+        "summary": "LLM failed to summarize the post",
+        "citations": []
     }
     
     prompt = get_summary_prompt(post_content)
-    result = safe_llm_call(prompt, fallback=fallback_response)
+    result = execute_llm(prompt, fallback=fallback_response)
     
     if result == fallback_response:
         return fallback_response
@@ -102,7 +102,7 @@ def answer_question_about_post(post_id: int, question: str, top_k: int = 3) -> D
         
         context = "\n---\n".join(top_chunks)
         prompt = get_qa_prompt(context, question)
-        result = safe_llm_call(prompt, fallback=fallback_response)
+        result = execute_llm(prompt, fallback=fallback_response)
         
         if result == fallback_response:
             return fallback_response
@@ -157,7 +157,7 @@ def answer_question_global(question: str, top_k: int = 5) -> Dict[str, Any]:
         
         logger.info("Extracting citations with post tracking")
         prompt = get_citation_extraction_prompt(rag_answer, context)
-        result = safe_llm_call(prompt, fallback=fallback_response)
+        result = execute_llm(prompt, fallback=fallback_response)
         
         if result == fallback_response:
             return fallback_response
@@ -180,7 +180,7 @@ def analyze_comment_sentiment(comment: str) -> dict:
     }
     
     prompt = get_comment_analysis_prompt(comment)
-    result = safe_llm_call(prompt, fallback=fallback_response)
+    result = execute_llm(prompt, fallback=fallback_response)
     
     if result == fallback_response:
         return fallback_response
@@ -203,7 +203,7 @@ def suggest_trending_tags(posts_with_comments: List[dict], top_k: int = 10) -> L
     fallback_response = ["general", "blog", "discussion"]
     
     prompt = get_trending_tags_prompt(posts_with_comments, top_k)
-    result = safe_llm_call(prompt, expect_array=True, fallback=fallback_response)
+    result = execute_llm(prompt, expect_array=True, fallback=fallback_response)
     
     if result == fallback_response:
         return fallback_response[:top_k]

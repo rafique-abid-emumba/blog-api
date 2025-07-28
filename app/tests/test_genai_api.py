@@ -141,8 +141,8 @@ def test_title_tags_validation_repetitive_content():
 def test_summarize_validation_short_content():
     payload = {"post_content": "Hello world"}
     response = client.post("/genai/summarize", json=payload)
-    assert response.status_code == 400
-    assert "Content must be at least 20 characters long" in response.json()["detail"]
+    assert response.status_code == 422
+    assert "String should have at least 20 characters" in response.json()["detail"][0]["msg"]
 
 def test_summarize_validation_numeric_content():
     payload = {"post_content": "12345678901234567890"}

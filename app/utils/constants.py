@@ -22,4 +22,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7 
 
 #Embedding constants
-CHUNK_SIZE = 200 
+CHUNK_SIZE = 200
+
+# Cache constants
+POST_CACHE_TTL = 300  # 5 minutes
+POST_CACHE_PREFIX = "posts" 

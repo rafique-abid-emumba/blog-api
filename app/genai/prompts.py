@@ -47,8 +47,8 @@ You must respond with ONLY a valid JSON object in this exact format:
 }}
 
 ## IMPORTANT RULES:
-- If you cannot generate a proper summary, use "This post discusses various topics and provides insights on the subject matter."
-- If you cannot identify citations, use ["Content analysis"]
+- If you cannot generate a proper summary, use "LLM failed to summarize the post"
+- If you cannot identify citations, use []
 - Never include explanations, markdown, or extra text
 - Only return the JSON object
 - Summary should be 2-3 sentences maximum

@@ -9,7 +9,7 @@ class TitleTagResponse(BaseModel):
     tags: List[str]
 
 class SummarizeRequest(BaseModel):
-    post_content: constr(min_length=1, max_length=5000)
+    post_content: constr(min_length=20, max_length=5000)
 
 class SummarizeResponse(BaseModel):
     summary: str
