@@ -13,7 +13,6 @@ def get_current_user(request: Request, token: str = Depends(api_key_header)):
     
     return payload
 
-# RBAC dependency
 def require_role(required_roles: list):
     def role_checker(current_user=Depends(get_current_user)):
         if current_user["role"] not in required_roles:

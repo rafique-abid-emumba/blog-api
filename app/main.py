@@ -5,6 +5,7 @@ from app.api.post import router as post_router
 from app.api.comment import router as comment_router
 from app.api.genai import router as genai_router
 from app.api.health import router as health_router
+from app.api.evaluation import router as evaluation_router
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security import SecurityHeadersMiddleware
 from sqlalchemy.exc import OperationalError
@@ -38,3 +39,4 @@ app.include_router(user_router)
 app.include_router(post_router)
 app.include_router(comment_router)
 app.include_router(genai_router)
+app.include_router(evaluation_router)

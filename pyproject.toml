@@ -29,6 +29,7 @@ email-validator = "^2.2.0"
 qdrant-client = "^1.14.3"
 llama-index-vector-stores-qdrant = "^0.6.1"
 asyncpg = "^0.29.0"
+deepeval = "^3.3.2"
 
 
 [tool.poetry.group.dev.dependencies]
