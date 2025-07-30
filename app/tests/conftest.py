@@ -47,4 +47,12 @@ def test_user(db_session):
     user = create_user(db_session, user_data)
     user.role_id = admin_role.id
     db_session.commit()
-    return user 
+    return user
+
+@pytest.fixture
+def add_roles_to_db(db_session):
+    admin_role = Role(name="Admin")
+    author_role = Role(name="Author")
+    reader_role = Role(name="Reader")
+    db_session.add_all([admin_role, author_role, reader_role])
+    db_session.commit()

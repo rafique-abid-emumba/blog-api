@@ -6,19 +6,11 @@ from app.schemas.comment import CommentCreate, CommentUpdate
 from fastapi import HTTPException, status
 from typing import List, Optional
 import logging
+from app.utils.constants import MAX_COMMENTS_PER_USER_PER_POST, MAX_COMMENTS_PER_POST, MAX_COMMENT_DEPTH
+from app.utils.utilities import get_comment_depth
+from app.services.genai_service import analyze_comment
 
 logger = logging.getLogger(__name__)
-
-MAX_COMMENTS_PER_USER_PER_POST = 10
-MAX_COMMENTS_PER_POST = 100
-MAX_COMMENT_DEPTH = 3
-
-def get_comment_depth(comment):
-    depth = 1
-    while comment.parent is not None:
-        depth += 1
-        comment = comment.parent
-    return depth
 
 def validate_user_comment_limit(db, user_id, post_id):
     count = db.query(Comment).filter(Comment.post_id == post_id, Comment.user_id == user_id).count()
@@ -49,11 +41,24 @@ def create_comment(db: Session, user: User, post: Post, comment_in: CommentCreat
         parent = None
         if comment_in.parent_id is not None:
             parent = validate_parent_comment(db, comment_in.parent_id, comment_in.post_id)
+        
+        try:
+            analysis = analyze_comment(comment_in.content)
+            sentiment = analysis.sentiment
+            is_abusive = 1 if analysis.abusive_flag else 0
+            logger.info(f"Comment analysis completed for user {user.id}")
+        except Exception as e:
+            logger.warning(f"GenAI analysis failed for comment, using defaults: {e}")
+            sentiment = "neutral"
+            is_abusive = 0
+        
         comment = Comment(
             content=comment_in.content,
             post_id=comment_in.post_id,
             user_id=user.id,
-            parent_id=comment_in.parent_id
+            parent_id=comment_in.parent_id,
+            sentiment=sentiment,
+            is_abusive=is_abusive
         )
         db.add(comment)
         db.commit()
@@ -88,6 +93,15 @@ def update_comment(db: Session, comment: Comment, comment_update: CommentUpdate,
             logger.warning(f"User {user.id} not allowed to update comment {comment.id}")
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to update this comment")
         comment.content = comment_update.content
+        
+        try:
+            analysis = analyze_comment(comment_update.content)
+            comment.sentiment = analysis.sentiment
+            comment.is_abusive = 1 if analysis.is_abusive else 0
+            logger.info(f"Comment re-analysis completed for comment {comment.id}")
+        except Exception as e:
+            logger.warning(f"GenAI re-analysis failed for comment {comment.id}, keeping existing analysis: {e}")
+        
         db.commit()
         db.refresh(comment)
         logger.info(f"Comment {comment.id} updated by user {user.id}")
@@ -132,6 +146,8 @@ def serialize_comment(comment: Comment, current_depth: int = 1, max_depth: int =
         "parent_id": comment.parent_id,
         "created_at": comment.created_at,
         "updated_at": comment.updated_at,
+        "sentiment": comment.sentiment,
+        "is_abusive": bool(comment.is_abusive) if comment.is_abusive is not None else None,
     }
     if current_depth < max_depth:
         data["replies"] = [

@@ -76,9 +76,8 @@ pip install poetry
 pipx install poetry
 ```
 
-### 3. Install dependencies (including email-validator)
+### 3. Install dependencies
 ```sh
-poetry add email-validator
 poetry install
 ```
 
@@ -140,13 +139,13 @@ poetry run python -m pytest -v app/tests/
 To run tests and measure code coverage:
 
 ```bash
-pytest --cov=app --cov-report=term-missing app/tests
+poetry run pytest --cov=app --cov-report=term-missing app/tests
 ```
 
 To generate an HTML coverage report:
 
 ```bash
-pytest --cov=app --cov-report=html app/tests
+poetry run pytest --cov=app --cov-report=html app/tests
 # Open the report in your browser:
 # On Windows:
 start htmlcov/index.html
@@ -236,5 +235,29 @@ RBAC is enforced using FastAPI dependencies (`require_role`).
   - Set `REDIS_URL=redis://localhost:6379/0` in your `.env` file.
   - In production, use a managed Redis service (AWS ElastiCache, Azure, Redis Cloud, etc.).
 - **All token logic is modularized in `auth_service.py` for clean architecture.**
+
+---
+
+## GenAI Features & Dependencies
+
+This project uses a modular GenAI architecture with [LlamaIndex](https://github.com/jerryjliu/llama_index) and supports multiple LLM, embedding, and vector store providers.
+
+- All required dependencies are now managed via Poetry and listed in `pyproject.toml`.
+
+### Modular GenAI Architecture
+- LLM, embedding, and vector store providers are selected via environment variables in `.env` or via `app/core/config.py` settings.
+- You can easily switch providers (Groq, OpenAI, HuggingFace, Cohere, ChromaDB, QDrant) by changing config values.
+
+### Example Environment Variables
+
+```
+GROQ_API_KEY=your-groq-api-key
+LLM_PROVIDER=groq
+LLM_MODEL=llama3-70b-8192
+EMBEDDING_PROVIDER=huggingface
+VECTOR_DB_PROVIDER=qdrant
+```
+
+See `app/core/config.py` for all available settings.
 
 ---

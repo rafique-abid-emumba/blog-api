@@ -4,24 +4,32 @@ version = "0.1.0"
 description = "FASTAPI-Powered Blog API – Advanced Edition"
 authors = ["Rafique Abid"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "3.10.11"
 fastapi = "^0.115.14"
 uvicorn = "^0.35.0"
 sqlalchemy = "^2.0.41"
 alembic = "^1.16.2"
 psycopg2-binary = "^2.9.10"
 pydantic = "^2.11.7"
-bcrypt = "3.2.2"
+bcrypt = "4.0.1"
 python-jose = {extras = ["cryptography"], version = "^3.5.0"}
 httpx = "^0.28.1"
 redis = "^6.2.0"
-qdrant-client = "^1.14.3"
 cohere = "^5.15.0"
 python-dotenv = "^1.1.1"
 pydantic-settings = "^2.10.1"
-passlib = "^1.7.4"
+passlib = ">=1.7.4,<2.0.0"
+llama-index = "^0.12.49"
+llama-index-embeddings-huggingface = "^0.5.5"
+llama-index-llms-groq = "^0.3.2"
+email-validator = "^2.2.0"
+qdrant-client = "^1.14.3"
+llama-index-vector-stores-qdrant = "^0.6.1"
+asyncpg = "^0.29.0"
+deepeval = "^3.3.2"
 
 
 [tool.poetry.group.dev.dependencies]

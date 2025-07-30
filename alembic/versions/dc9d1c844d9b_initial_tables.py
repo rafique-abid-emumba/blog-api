@@ -75,6 +75,8 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_comments_id'), 'comments', ['id'], unique=False)
+    op.add_column('comments', sa.Column('sentiment', sa.Text(), nullable=True))
+    op.add_column('comments', sa.Column('is_abusive', sa.Integer(), nullable=True))
     op.create_table('post_tags',
     sa.Column('post_id', sa.Integer(), nullable=False),
     sa.Column('tag_id', sa.Integer(), nullable=False),
@@ -101,4 +103,6 @@ def downgrade() -> None:
     op.drop_table('tags')
     op.drop_index(op.f('ix_roles_id'), table_name='roles')
     op.drop_table('roles')
+    op.drop_column('comments', 'sentiment')
+    op.drop_column('comments', 'is_abusive')
     # ### end Alembic commands ###
