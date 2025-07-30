@@ -5,7 +5,9 @@ from app.models.post import PostStatus
 from app.schemas.post import PostCreate, PostUpdate, PostFilters
 from app.services.post_service import (
     create_post, get_post, update_post, delete_post,
-    get_posts_with_filters, create_quick_post
+    get_posts_with_filters, create_quick_post, set_post_tags,
+    get_posts_for_admin_with_filters, get_posts_for_author_with_filters,
+    get_posts_for_reader_with_filters, update_post_async, delete_post_async
 )
 from app.schemas.post import PostFilters
 from unittest.mock import patch
@@ -189,6 +191,172 @@ class TestPostService:
         with pytest.raises(HTTPException) as exc_info:
             get_post(db_session, post_id)
         assert exc_info.value.status_code == 404
+
+    def test_set_post_tags(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Test Post",
+            content="Test content",
+            status=PostStatus.published
+        )
+        post = create_post(db_session, test_user, post_data)
+        
+        set_post_tags(db_session, post, ["new-tag", "another-tag"])
+        db_session.commit()
+        db_session.refresh(post)
+        
+        tag_names = [pt.tag.name for pt in post.post_tags]
+        assert "new-tag" in tag_names
+        assert "another-tag" in tag_names
+
+    def test_get_posts_for_admin_with_filters(self, db_session, test_user):
+        for i in range(3):
+            post_data = PostCreate(
+                title=f"Admin Post {i}",
+                content=f"Content {i}",
+                status=PostStatus.published
+            )
+            create_post(db_session, test_user, post_data)
+        
+        filters = PostFilters()
+        posts, total = get_posts_for_admin_with_filters(db_session, filters, skip=0, limit=10)
+        assert len(posts) == 3
+        assert total == 3
+
+    def test_get_posts_for_author_with_filters(self, db_session, test_user):
+        for i in range(2):
+            post_data = PostCreate(
+                title=f"Author Post {i}",
+                content=f"Content {i}",
+                status=PostStatus.published
+            )
+            create_post(db_session, test_user, post_data)
+        
+        filters = PostFilters()
+        posts, total = get_posts_for_author_with_filters(db_session, test_user.id, filters, skip=0, limit=10)
+        assert len(posts) == 2
+        assert total == 2
+        assert all(post.author_id == test_user.id for post in posts)
+
+    def test_get_posts_for_reader_with_filters(self, db_session, test_user):
+        for i in range(2):
+            post_data = PostCreate(
+                title=f"Reader Post {i}",
+                content=f"Content {i}",
+                status=PostStatus.published
+            )
+            create_post(db_session, test_user, post_data)
+        
+        draft_data = PostCreate(
+            title="Draft Post",
+            content="Draft content",
+            status=PostStatus.draft
+        )
+        create_post(db_session, test_user, draft_data)
+        
+        filters = PostFilters()
+        posts, total = get_posts_for_reader_with_filters(db_session, filters, skip=0, limit=10)
+        assert len(posts) == 2
+        assert total == 2
+        assert all(post.status == PostStatus.published for post in posts)
+
+    def test_update_post_async(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Original Title",
+            content="Original content",
+            status=PostStatus.draft
+        )
+        post = create_post(db_session, test_user, post_data)
+        
+        update_data = PostUpdate(
+            title="Updated Title Async",
+            content="Updated content async"
+        )
+        updated_post = update_post(db_session, post, update_data)
+        assert updated_post.title == "Updated Title Async"
+        assert updated_post.content == "Updated content async"
+
+    def test_delete_post_async(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Test Post Async",
+            content="This is a test post content.",
+            status=PostStatus.published
+        )
+        post = create_post(db_session, test_user, post_data)
+        post_id = post.id
+        
+        delete_post(db_session, post)
+        
+        with pytest.raises(HTTPException) as exc_info:
+            get_post(db_session, post_id)
+        assert exc_info.value.status_code == 404
+
+    def test_update_post_with_duplicate_username(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Test Post",
+            content="Test content",
+            status=PostStatus.published
+        )
+        post = create_post(db_session, test_user, post_data)
+        
+        update_data = PostUpdate(title="Test Post")
+        updated_post = update_post(db_session, post, update_data)
+        assert updated_post.title == "Test Post"
+
+    def test_update_post_with_new_tags(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Test Post",
+            content="Test content",
+            status=PostStatus.published,
+            tags=["python"]
+        )
+        post = create_post(db_session, test_user, post_data)
+        
+        update_data = PostUpdate(tags=["new-tag", "another-tag"])
+        updated_post = update_post(db_session, post, update_data)
+        tag_names = [pt.tag.name for pt in updated_post.post_tags]
+        assert set(tag_names) == {"new-tag", "another-tag"}
+
+    def test_get_post_with_summary(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Test Post",
+            content="This is a test post content.",
+            status=PostStatus.published
+        )
+        post = create_post(db_session, test_user, post_data)
+        
+        post_with_summary = get_post(db_session, post.id, include_summary=True)
+        assert post_with_summary is not None
+        assert post_with_summary.title == "Test Post"
+
+    def test_create_post_exception_handling(self, db_session, test_user):
+        post_data = PostCreate(
+            title="Test Post",
+            content="This is a test post content.",
+            status=PostStatus.published,
+            tags=["python", "fastapi"]
+        )
+        
+        post = create_post(db_session, test_user, post_data)
+        assert post is not None
+
+    def test_get_posts_with_complex_filters(self, db_session, test_user):
+        for i in range(3):
+            post_data = PostCreate(
+                title=f"Complex Post {i}",
+                content=f"Content {i}",
+                status=PostStatus.published,
+                tags=["complex", "test"]
+            )
+            create_post(db_session, test_user, post_data)
+        
+        filters = PostFilters(
+            status=PostStatus.published,
+            tags=["complex"],
+            search="Complex"
+        )
+        posts, total = get_posts_with_filters(db_session, filters, skip=0, limit=10)
+        assert len(posts) == 3
+        assert total == 3
 
 def test_filter_by_status(db_session, test_user, published_post, draft_post):
     filters = PostFilters(status=PostStatus.published)
